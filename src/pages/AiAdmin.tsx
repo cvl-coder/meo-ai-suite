@@ -44,12 +44,19 @@ type SearchConfig = {
   client_fields: ClientField[];
 };
 
+type TestDataEntry = {
+  id: string;
+  label: string;
+  field_values: Record<string, string>;
+};
+
 export default function AiAdmin() {
   const [functions, setFunctions] = useState<AiFunction[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [configMap, setConfigMap] = useState<Record<string, SearchConfig>>({});
-  const [inputData, setInputData] = useState<Record<string, string>>({});
+  const [testDataMap, setTestDataMap] = useState<Record<string, TestDataEntry[]>>({});
+  const [selectedTestData, setSelectedTestData] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
   const navigate = useNavigate();
