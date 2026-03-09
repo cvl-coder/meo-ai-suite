@@ -345,11 +345,11 @@ export default function AiSearchConfig() {
                 <div className="space-y-2">
                   <Label>Endpoint URL</Label>
                   <Input
-                    placeholder="https://your-server.com/v1/chat/completions"
+                    placeholder="http://your-server.com/v1"
                     value={config.ai_endpoint_url}
                     onChange={(e) => setConfig({ ...config, ai_endpoint_url: e.target.value })}
                   />
-                  <p className="text-xs text-muted-foreground">Must be OpenAI-compatible (POST /v1/chat/completions)</p>
+                  <p className="text-xs text-muted-foreground">Base URL only (e.g. http://core.meo.io/v1). /chat/completions is appended automatically.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>API Key</Label>
