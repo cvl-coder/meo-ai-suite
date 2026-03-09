@@ -1,11 +1,12 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Brain, Settings, Plug, Search } from "lucide-react";
+import { Brain, Settings, Plug, Search, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/ai-admin", label: "AI Functions", icon: Brain },
   { href: "/ai-admin/search", label: "Search Config", icon: Search },
+  { href: "/ai-admin/test-data", label: "Test Data", icon: Database },
   { href: "/integration", label: "Integration", icon: Plug },
 ];
 
