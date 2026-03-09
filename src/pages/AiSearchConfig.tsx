@@ -57,6 +57,8 @@ export default function AiSearchConfig() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newUrl, setNewUrl] = useState("");
+  const [newSourceType, setNewSourceType] = useState<SourceType>("search");
+  const [newSourceDesc, setNewSourceDesc] = useState("");
   const [testData, setTestData] = useState<Record<string, string>>({});
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
