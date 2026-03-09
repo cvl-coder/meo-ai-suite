@@ -5,9 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database } from "lucide-react";
@@ -45,12 +44,19 @@ type SearchConfig = {
   client_fields: ClientField[];
 };
 
+type TestDataEntry = {
+  id: string;
+  label: string;
+  field_values: Record<string, string>;
+};
+
 export default function AiAdmin() {
   const [functions, setFunctions] = useState<AiFunction[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [configMap, setConfigMap] = useState<Record<string, SearchConfig>>({});
-  const [inputData, setInputData] = useState<Record<string, string>>({});
+  const [testDataMap, setTestDataMap] = useState<Record<string, TestDataEntry[]>>({});
+  const [selectedTestData, setSelectedTestData] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
   const navigate = useNavigate();
@@ -96,35 +102,63 @@ export default function AiAdmin() {
       return;
     }
 
-    // Load config if not cached
-    if (!configMap[fn.id]) {
-      const { data } = await supabase
-        .from("ai_search_configs")
-        .select("*")
-        .eq("function_id", fn.id)
-        .limit(1)
-        .single();
+    // Load config and test data in parallel
+    const [configRes, testDataRes] = await Promise.all([
+      configMap[fn.id]
+        ? Promise.resolve(null)
+        : supabase
+            .from("ai_search_configs")
+            .select("*")
+            .eq("function_id", fn.id)
+            .limit(1)
+            .single(),
+      testDataMap[fn.id]
+        ? Promise.resolve(null)
+        : supabase
+            .from("ai_test_data")
+            .select("*")
+            .eq("function_id", fn.id)
+            .order("created_at", { ascending: false }),
+    ]);
 
-      if (data) {
-        setConfigMap((prev) => ({
-          ...prev,
-          [fn.id]: {
-            ...data,
-            search_urls: (data.search_urls as any) || [],
-            client_fields: (data.client_fields as any) || [],
-          },
-        }));
-      }
+    if (configRes?.data) {
+      setConfigMap((prev) => ({
+        ...prev,
+        [fn.id]: {
+          ...configRes.data,
+          search_urls: (configRes.data.search_urls as any) || [],
+          client_fields: (configRes.data.client_fields as any) || [],
+        },
+      }));
+    }
+
+    if (testDataRes?.data) {
+      setTestDataMap((prev) => ({
+        ...prev,
+        [fn.id]: (testDataRes.data as any) || [],
+      }));
     }
 
     setExpandedId(fn.id);
-    setInputData({});
     setResult(null);
+  };
+
+  const getSelectedInputData = (fnId: string): Record<string, string> => {
+    const entryId = selectedTestData[fnId];
+    const entries = testDataMap[fnId] || [];
+    const entry = entries.find((e) => e.id === entryId);
+    return entry?.field_values || {};
   };
 
   const runFunction = async (fn: AiFunction) => {
     const config = configMap[fn.id];
     if (!config) return;
+
+    const clientData = getSelectedInputData(fn.id);
+    if (!selectedTestData[fn.id]) {
+      toast({ title: "Select test data first", variant: "destructive" });
+      return;
+    }
 
     setRunning(true);
     setResult(null);
@@ -132,7 +166,7 @@ export default function AiAdmin() {
     try {
       const { data, error } = await supabase.functions.invoke("ai-search", {
         body: {
-          client_data: inputData,
+          client_data: clientData,
           search_urls: config.search_urls,
           prompt_template: config.prompt_template,
         },
@@ -144,10 +178,9 @@ export default function AiAdmin() {
         toast({ title: "Search failed", description: data.error || "Unknown error", variant: "destructive" });
       } else {
         setResult(data);
-        // Save to history
         await supabase.from("ai_search_results").insert({
           config_id: config.id,
-          client_data: inputData as any,
+          client_data: clientData as any,
           results: data as any,
           status: "completed",
         });
@@ -277,44 +310,59 @@ export default function AiAdmin() {
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                             Loading configuration...
                           </div>
-                        ) : config.client_fields.length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-4">
-                            No input fields configured. Go to Configure to add client fields.
-                          </p>
                         ) : (
                           <>
-                            <div className="grid gap-4 md:grid-cols-2">
-                              {config.client_fields.map((field) => (
-                                <div key={field.key} className="space-y-1.5">
-                                  <Label className="text-sm">
-                                    {field.label}
-                                    {field.required && <span className="text-destructive ml-1">*</span>}
-                                  </Label>
-                                  {field.type === "textarea" ? (
-                                    <Textarea
-                                      value={inputData[field.key] || ""}
-                                      onChange={(e) =>
-                                        setInputData({ ...inputData, [field.key]: e.target.value })
-                                      }
-                                      placeholder={`Enter ${field.label.toLowerCase()}`}
-                                      className="resize-none"
-                                      rows={3}
-                                    />
-                                  ) : (
-                                    <Input
-                                      value={inputData[field.key] || ""}
-                                      onChange={(e) =>
-                                        setInputData({ ...inputData, [field.key]: e.target.value })
-                                      }
-                                      placeholder={`Enter ${field.label.toLowerCase()}`}
-                                    />
-                                  )}
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium">Select Test Data</Label>
+                              {(testDataMap[fn.id] || []).length === 0 ? (
+                                <div className="flex items-center gap-3 py-4">
+                                  <p className="text-sm text-muted-foreground">No test data available.</p>
+                                  <Button variant="outline" size="sm" onClick={() => navigate("/ai-admin/test-data")} className="gap-1.5">
+                                    <Database className="h-3.5 w-3.5" />
+                                    Add Test Data
+                                  </Button>
                                 </div>
-                              ))}
+                              ) : (
+                                <>
+                                  <Select
+                                    value={selectedTestData[fn.id] || ""}
+                                    onValueChange={(val) =>
+                                      setSelectedTestData((prev) => ({ ...prev, [fn.id]: val }))
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Choose a test data set..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(testDataMap[fn.id] || []).map((entry) => (
+                                        <SelectItem key={entry.id} value={entry.id}>
+                                          {entry.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  {/* Preview selected data */}
+                                  {selectedTestData[fn.id] && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {Object.entries(getSelectedInputData(fn.id)).map(([key, val]) => {
+                                        if (!val) return null;
+                                        const field = config.client_fields.find((f) => f.key === key);
+                                        return (
+                                          <Badge key={key} variant="outline" className="text-xs">
+                                            {field?.label || key}: {val}
+                                          </Badge>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </div>
+
                             <Button
                               onClick={() => runFunction(fn)}
-                              disabled={running}
+                              disabled={running || !selectedTestData[fn.id]}
                               className="gap-2"
                             >
                               {running ? (
