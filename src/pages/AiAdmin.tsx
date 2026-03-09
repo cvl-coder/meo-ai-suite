@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Search, Brain, FileText, Sparkles, Settings } from "lucide-react";
+import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
   "globe-search": Search,
@@ -27,9 +30,29 @@ type AiFunction = {
   created_at: string;
 };
 
+type ClientField = {
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+};
+
+type SearchConfig = {
+  id: string;
+  function_id: string;
+  search_urls: string[];
+  prompt_template: string;
+  client_fields: ClientField[];
+};
+
 export default function AiAdmin() {
   const [functions, setFunctions] = useState<AiFunction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [configMap, setConfigMap] = useState<Record<string, SearchConfig>>({});
+  const [inputData, setInputData] = useState<Record<string, string>>({});
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<any>(null);
   const navigate = useNavigate();
 
   const fetchFunctions = async () => {
@@ -66,6 +89,77 @@ export default function AiAdmin() {
     }
   };
 
+  const loadConfig = async (fn: AiFunction) => {
+    if (expandedId === fn.id) {
+      setExpandedId(null);
+      setResult(null);
+      return;
+    }
+
+    // Load config if not cached
+    if (!configMap[fn.id]) {
+      const { data } = await supabase
+        .from("ai_search_configs")
+        .select("*")
+        .eq("function_id", fn.id)
+        .limit(1)
+        .single();
+
+      if (data) {
+        setConfigMap((prev) => ({
+          ...prev,
+          [fn.id]: {
+            ...data,
+            search_urls: (data.search_urls as any) || [],
+            client_fields: (data.client_fields as any) || [],
+          },
+        }));
+      }
+    }
+
+    setExpandedId(fn.id);
+    setInputData({});
+    setResult(null);
+  };
+
+  const runFunction = async (fn: AiFunction) => {
+    const config = configMap[fn.id];
+    if (!config) return;
+
+    setRunning(true);
+    setResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-search", {
+        body: {
+          client_data: inputData,
+          search_urls: config.search_urls,
+          prompt_template: config.prompt_template,
+        },
+      });
+
+      if (error) {
+        toast({ title: "Search failed", description: error.message, variant: "destructive" });
+      } else if (data && !data.success) {
+        toast({ title: "Search failed", description: data.error || "Unknown error", variant: "destructive" });
+      } else {
+        setResult(data);
+        // Save to history
+        await supabase.from("ai_search_results").insert({
+          config_id: config.id,
+          client_data: inputData as any,
+          results: data as any,
+          status: "completed",
+        });
+        toast({ title: "Search completed" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+
+    setRunning(false);
+  };
+
   const getConfigRoute = (type: string) => {
     if (type === "external_search") return "/ai-admin/search";
     return "/ai-admin";
@@ -98,13 +192,16 @@ export default function AiAdmin() {
             ))}
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-6">
             {functions.map((fn) => {
               const Icon = iconMap[fn.icon || "search"] || Search;
+              const isExpanded = expandedId === fn.id;
+              const config = configMap[fn.id];
+
               return (
                 <Card
                   key={fn.id}
-                  className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg ${
+                  className={`relative overflow-hidden transition-all duration-200 ${
                     fn.enabled ? "border-primary/30 shadow-md" : ""
                   }`}
                 >
@@ -113,36 +210,146 @@ export default function AiAdmin() {
                   )}
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div
-                        className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-                          fn.enabled
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                            fn.enabled
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{fn.name}</CardTitle>
+                          <CardDescription>{fn.description}</CardDescription>
+                        </div>
                       </div>
                       <Switch
                         checked={fn.enabled}
                         onCheckedChange={(checked) => toggleFunction(fn.id, checked)}
                       />
                     </div>
-                    <CardTitle className="mt-3 text-lg">{fn.name}</CardTitle>
-                    <CardDescription>{fn.description}</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex items-center justify-between pt-0">
-                    <Badge variant={fn.enabled ? "default" : "secondary"}>
-                      {fn.enabled ? "Active" : "Inactive"}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate(getConfigRoute(fn.type))}
-                      className="gap-1.5"
-                    >
-                      <Settings className="h-4 w-4" />
-                      Configure
-                    </Button>
+                  <CardContent className="space-y-4 pt-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={fn.enabled ? "default" : "secondary"}>
+                          {fn.enabled ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(getConfigRoute(fn.type))}
+                          className="gap-1.5"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Configure
+                        </Button>
+                        {fn.enabled && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => loadConfig(fn)}
+                            className="gap-1.5"
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                            {isExpanded ? "Close" : "Run"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded inline run panel */}
+                    {isExpanded && fn.enabled && (
+                      <div className="border-t pt-4 space-y-4">
+                        {!config ? (
+                          <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Loading configuration...
+                          </div>
+                        ) : config.client_fields.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-4">
+                            No input fields configured. Go to Configure to add client fields.
+                          </p>
+                        ) : (
+                          <>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              {config.client_fields.map((field) => (
+                                <div key={field.key} className="space-y-1.5">
+                                  <Label className="text-sm">
+                                    {field.label}
+                                    {field.required && <span className="text-destructive ml-1">*</span>}
+                                  </Label>
+                                  {field.type === "textarea" ? (
+                                    <Textarea
+                                      value={inputData[field.key] || ""}
+                                      onChange={(e) =>
+                                        setInputData({ ...inputData, [field.key]: e.target.value })
+                                      }
+                                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                                      className="resize-none"
+                                      rows={3}
+                                    />
+                                  ) : (
+                                    <Input
+                                      value={inputData[field.key] || ""}
+                                      onChange={(e) =>
+                                        setInputData({ ...inputData, [field.key]: e.target.value })
+                                      }
+                                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <Button
+                              onClick={() => runFunction(fn)}
+                              disabled={running}
+                              className="gap-2"
+                            >
+                              {running ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Play className="h-4 w-4" />
+                              )}
+                              {running ? "Running..." : "Run Search"}
+                            </Button>
+                          </>
+                        )}
+
+                        {/* Results */}
+                        {result && (
+                          <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                            <h4 className="text-sm font-semibold">Results</h4>
+                            {result.synthesis ? (
+                              <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap text-sm">
+                                {result.synthesis}
+                              </div>
+                            ) : (
+                              <pre className="overflow-auto text-xs font-mono max-h-96">
+                                {JSON.stringify(result, null, 2)}
+                              </pre>
+                            )}
+                            {result.sources && (
+                              <div className="flex flex-wrap gap-2 pt-2 border-t">
+                                {result.sources.map((s: any, i: number) => (
+                                  <Badge key={i} variant={s.hasContent ? "default" : "secondary"} className="text-xs">
+                                    {new URL(s.url).hostname}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
