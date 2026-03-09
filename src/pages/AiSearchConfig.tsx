@@ -36,7 +36,9 @@ type SearchResult = {
 };
 
 export default function AiSearchConfig() {
+  const { functionId } = useParams<{ functionId: string }>();
   const [config, setConfig] = useState<SearchConfig | null>(null);
+  const [functionName, setFunctionName] = useState("AI Function");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newUrl, setNewUrl] = useState("");
@@ -46,14 +48,27 @@ export default function AiSearchConfig() {
   const [history, setHistory] = useState<SearchResult[]>([]);
 
   useEffect(() => {
-    fetchConfig();
-    fetchHistory();
-  }, []);
+    if (functionId) {
+      fetchFunctionName();
+      fetchConfig();
+      fetchHistory();
+    }
+  }, [functionId]);
+
+  const fetchFunctionName = async () => {
+    const { data } = await supabase
+      .from("ai_functions")
+      .select("name")
+      .eq("id", functionId!)
+      .single();
+    if (data) setFunctionName(data.name);
+  };
 
   const fetchConfig = async () => {
     const { data, error } = await supabase
       .from("ai_search_configs")
       .select("*")
+      .eq("function_id", functionId!)
       .limit(1)
       .single();
 
