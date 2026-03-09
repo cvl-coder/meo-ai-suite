@@ -58,7 +58,7 @@ export default function AiAdmin() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [configMap, setConfigMap] = useState<Record<string, SearchConfig>>({});
-  const [testDataMap, setTestDataMap] = useState<Record<string, TestDataEntry[]>>({});
+  const [allTestData, setAllTestData] = useState<TestDataEntry[]>([]);
   const [selectedTestData, setSelectedTestData] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
