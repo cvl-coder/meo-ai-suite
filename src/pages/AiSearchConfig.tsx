@@ -10,7 +10,22 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye } from "lucide-react";
+
+const SOURCE_TYPES = [
+  { value: "search", label: "Web Search", description: "Search the domain for relevant results using keywords", icon: Search },
+  { value: "scrape", label: "Scrape Page", description: "Extract content directly from the URL", icon: Eye },
+  { value: "file_download", label: "Download & Parse File", description: "Download a file (Excel, CSV, PDF) from the URL and search through it", icon: Download },
+] as const;
+
+type SourceType = typeof SOURCE_TYPES[number]["value"];
+
+type SearchSource = {
+  url: string;
+  type: SourceType;
+  description: string;
+};
 
 type ClientField = {
   key: string;
@@ -22,7 +37,7 @@ type ClientField = {
 type SearchConfig = {
   id: string;
   function_id: string;
-  search_urls: string[];
+  search_urls: SearchSource[];
   prompt_template: string;
   client_fields: ClientField[];
 };
