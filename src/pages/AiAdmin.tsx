@@ -190,6 +190,9 @@ export default function AiAdmin() {
           client_data: clientData,
           search_urls: config.search_urls,
           prompt_template: config.prompt_template,
+          ai_endpoint_url: (config as any).ai_endpoint_url || undefined,
+          ai_api_key: (config as any).ai_api_key || undefined,
+          ai_model: (config as any).ai_model || undefined,
         },
       });
 

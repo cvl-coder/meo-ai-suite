@@ -49,6 +49,9 @@ export type Database = {
       }
       ai_search_configs: {
         Row: {
+          ai_api_key: string
+          ai_endpoint_url: string
+          ai_model: string
           client_fields: Json
           function_id: string
           id: string
@@ -57,6 +60,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_api_key?: string
+          ai_endpoint_url?: string
+          ai_model?: string
           client_fields?: Json
           function_id: string
           id?: string
@@ -65,6 +71,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_api_key?: string
+          ai_endpoint_url?: string
+          ai_model?: string
           client_fields?: Json
           function_id?: string
           id?: string

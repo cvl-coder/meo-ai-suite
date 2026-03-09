@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye } from "lucide-react";
+import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye, Brain } from "lucide-react";
 
 const SOURCE_TYPES = [
   { value: "search", label: "Web Search", description: "Search the domain for relevant results using keywords", icon: Search },
@@ -40,6 +40,9 @@ type SearchConfig = {
   search_urls: SearchSource[];
   prompt_template: string;
   client_fields: ClientField[];
+  ai_endpoint_url: string;
+  ai_api_key: string;
+  ai_model: string;
 };
 
 type SearchResult = {
@@ -107,6 +110,9 @@ export default function AiSearchConfig() {
         ...data,
         search_urls: migratedUrls,
         client_fields: (data.client_fields as any) || [],
+        ai_endpoint_url: (data as any).ai_endpoint_url || "",
+        ai_api_key: (data as any).ai_api_key || "",
+        ai_model: (data as any).ai_model || "",
       });
     } else {
       // Auto-create a config for this function
@@ -147,7 +153,10 @@ export default function AiSearchConfig() {
         search_urls: config.search_urls as any,
         prompt_template: config.prompt_template,
         client_fields: config.client_fields as any,
-      })
+        ai_endpoint_url: config.ai_endpoint_url,
+        ai_api_key: config.ai_api_key,
+        ai_model: config.ai_model,
+      } as any)
       .eq("id", config.id);
 
     if (error) {
@@ -224,6 +233,9 @@ export default function AiSearchConfig() {
           client_data: testData,
           search_urls: config.search_urls,
           prompt_template: config.prompt_template,
+          ai_endpoint_url: config.ai_endpoint_url || undefined,
+          ai_api_key: config.ai_api_key || undefined,
+          ai_model: config.ai_model || undefined,
         },
       });
 
@@ -297,7 +309,11 @@ export default function AiSearchConfig() {
         </div>
 
         <Tabs defaultValue="sources" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="ai-model" className="gap-2">
+              <Brain className="h-4 w-4" />
+              AI Model
+            </TabsTrigger>
             <TabsTrigger value="sources" className="gap-2">
               <Globe className="h-4 w-4" />
               Sources
@@ -315,6 +331,51 @@ export default function AiSearchConfig() {
               Test
             </TabsTrigger>
           </TabsList>
+
+          {/* AI Model */}
+          <TabsContent value="ai-model">
+            <Card>
+              <CardHeader>
+                <CardTitle>Custom AI Model</CardTitle>
+                <CardDescription>
+                  Connect your own AI model endpoint. Leave empty to use the default Lovable AI gateway.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Endpoint URL</Label>
+                  <Input
+                    placeholder="https://your-server.com/v1/chat/completions"
+                    value={config.ai_endpoint_url}
+                    onChange={(e) => setConfig({ ...config, ai_endpoint_url: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">Must be OpenAI-compatible (POST /v1/chat/completions)</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>API Key</Label>
+                  <Input
+                    type="password"
+                    placeholder="sk-..."
+                    value={config.ai_api_key}
+                    onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Model Name</Label>
+                  <Input
+                    placeholder="e.g. gpt-4, llama-3, mistral-large"
+                    value={config.ai_model}
+                    onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
+                  />
+                </div>
+                {config.ai_endpoint_url && (
+                  <Badge variant="outline" className="text-xs">
+                    Custom AI: {config.ai_endpoint_url}
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Search Sources */}
           <TabsContent value="sources">

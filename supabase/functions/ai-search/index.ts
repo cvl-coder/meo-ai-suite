@@ -31,7 +31,7 @@ serve(async (req) => {
   }
 
   try {
-    const { client_data, search_urls, prompt_template } = await req.json();
+    const { client_data, search_urls, prompt_template, ai_endpoint_url, ai_api_key, ai_model } = await req.json();
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     if (!FIRECRAWL_API_KEY) {
@@ -41,12 +41,27 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ success: false, error: "AI gateway not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Determine AI endpoint: use custom if provided, else Lovable AI gateway
+    const useCustomAi = !!ai_endpoint_url;
+    let aiEndpoint: string;
+    let aiApiKey: string;
+    let aiModelName: string;
+
+    if (useCustomAi) {
+      aiEndpoint = ai_endpoint_url;
+      aiApiKey = ai_api_key || "";
+      aiModelName = ai_model || "";
+    } else {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        return new Response(
+          JSON.stringify({ success: false, error: "AI gateway not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      aiEndpoint = "https://ai.gateway.lovable.dev/v1/chat/completions";
+      aiApiKey = LOVABLE_API_KEY;
+      aiModelName = "google/gemini-2.5-flash";
     }
 
     // Step 1: Build the prompt by replacing {{variables}}
@@ -224,14 +239,14 @@ serve(async (req) => {
 
     console.log("Sending to AI for synthesis, context length:", scrapedContext.length);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch(aiEndpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${aiApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: aiModelName || undefined,
         messages: [
           {
             role: "system",
