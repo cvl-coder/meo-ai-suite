@@ -153,7 +153,10 @@ export default function AiSearchConfig() {
         search_urls: config.search_urls as any,
         prompt_template: config.prompt_template,
         client_fields: config.client_fields as any,
-      })
+        ai_endpoint_url: config.ai_endpoint_url,
+        ai_api_key: config.ai_api_key,
+        ai_model: config.ai_model,
+      } as any)
       .eq("id", config.id);
 
     if (error) {
