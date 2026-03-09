@@ -48,11 +48,7 @@ serve(async (req) => {
     let aiModelName: string;
 
     if (useCustomAi) {
-      let baseUrl = ai_endpoint_url.replace(/\/+$/, "");
-      if (!baseUrl.endsWith("/chat/completions")) {
-        baseUrl += "/chat/completions";
-      }
-      aiEndpoint = baseUrl;
+      aiEndpoint = ai_endpoint_url.replace(/\/+$/, "");
       aiApiKey = ai_api_key || "";
       aiModelName = ai_model || "";
     } else {
