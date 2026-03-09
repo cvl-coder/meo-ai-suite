@@ -436,16 +436,80 @@ export default function AiAdmin() {
             })}
 
             {/* Add new function card */}
-            <Card className="flex cursor-pointer items-center justify-center border-dashed transition-colors hover:border-primary/50 hover:bg-muted/50 min-h-[200px]">
+            <Card
+              className="flex cursor-pointer items-center justify-center border-dashed transition-colors hover:border-primary/50 hover:bg-muted/50 min-h-[200px]"
+              onClick={() => setShowAddDialog(true)}
+            >
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <Sparkles className="h-8 w-8" />
+                <Plus className="h-8 w-8" />
                 <span className="text-sm font-medium">Add AI Function</span>
-                <span className="text-xs">Coming soon</span>
               </div>
             </Card>
           </div>
         )}
       </div>
+
+      {/* Add Function Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New AI Function</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                placeholder="e.g. Board Member Search"
+                value={newFn.name}
+                onChange={(e) => setNewFn((p) => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                placeholder="What does this function do?"
+                value={newFn.description}
+                onChange={(e) => setNewFn((p) => ({ ...p, description: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={newFn.type} onValueChange={(v) => setNewFn((p) => ({ ...p, type: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="external_search">External Search</SelectItem>
+                  <SelectItem value="summarizer">Summarizer</SelectItem>
+                  <SelectItem value="classifier">Classifier</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Icon</Label>
+              <Select value={newFn.icon} onValueChange={(v) => setNewFn((p) => ({ ...p, icon: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="search">Search</SelectItem>
+                  <SelectItem value="brain">Brain</SelectItem>
+                  <SelectItem value="file">File</SelectItem>
+                  <SelectItem value="sparkles">Sparkles</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+            <Button onClick={createFunction} disabled={creating}>
+              {creating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
