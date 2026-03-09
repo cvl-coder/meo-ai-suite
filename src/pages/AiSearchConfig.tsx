@@ -110,6 +110,9 @@ export default function AiSearchConfig() {
         ...data,
         search_urls: migratedUrls,
         client_fields: (data.client_fields as any) || [],
+        ai_endpoint_url: (data as any).ai_endpoint_url || "",
+        ai_api_key: (data as any).ai_api_key || "",
+        ai_model: (data as any).ai_model || "",
       });
     } else {
       // Auto-create a config for this function
