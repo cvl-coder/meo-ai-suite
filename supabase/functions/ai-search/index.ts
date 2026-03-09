@@ -239,14 +239,14 @@ serve(async (req) => {
 
     console.log("Sending to AI for synthesis, context length:", scrapedContext.length);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch(aiEndpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${aiApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: aiModelName || undefined,
         messages: [
           {
             role: "system",
