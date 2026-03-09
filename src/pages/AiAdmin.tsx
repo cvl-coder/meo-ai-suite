@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
   "globe-search": Search,
