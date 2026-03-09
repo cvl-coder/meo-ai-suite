@@ -87,11 +87,15 @@ export default function AiSearchConfig() {
       .select("*")
       .eq("function_id", functionId!)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else if (data) {
+      setLoading(false);
+      return;
+    }
+
+    if (data) {
       // Migrate old string[] format to new SearchSource[] format
       const rawUrls = (data.search_urls as any) || [];
       const migratedUrls: SearchSource[] = rawUrls.map((item: any) =>
@@ -104,6 +108,23 @@ export default function AiSearchConfig() {
         search_urls: migratedUrls,
         client_fields: (data.client_fields as any) || [],
       });
+    } else {
+      // Auto-create a config for this function
+      const { data: newConfig, error: createError } = await supabase
+        .from("ai_search_configs")
+        .insert({ function_id: functionId!, search_urls: [], client_fields: [], prompt_template: "" })
+        .select()
+        .single();
+
+      if (createError) {
+        toast({ title: "Error creating config", description: createError.message, variant: "destructive" });
+      } else if (newConfig) {
+        setConfig({
+          ...newConfig,
+          search_urls: [],
+          client_fields: [],
+        });
+      }
     }
     setLoading(false);
   };
