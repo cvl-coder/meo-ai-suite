@@ -225,7 +225,7 @@ export default function AiSearchConfig() {
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              External AI Search
+              {functionName} Config
             </h1>
             <p className="text-muted-foreground">
               Configure search sources, prompts, and client data fields.
