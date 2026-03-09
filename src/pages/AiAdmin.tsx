@@ -140,41 +140,25 @@ export default function AiAdmin() {
       return;
     }
 
-    // Load config and test data in parallel
-    const [configRes, testDataRes] = await Promise.all([
-      configMap[fn.id]
-        ? Promise.resolve(null)
-        : supabase
-            .from("ai_search_configs")
-            .select("*")
-            .eq("function_id", fn.id)
-            .limit(1)
-            .single(),
-      testDataMap[fn.id]
-        ? Promise.resolve(null)
-        : supabase
-            .from("ai_test_data")
-            .select("*")
-            .eq("function_id", fn.id)
-            .order("created_at", { ascending: false }),
-    ]);
+    // Load config
+    if (!configMap[fn.id]) {
+      const { data } = await supabase
+        .from("ai_search_configs")
+        .select("*")
+        .eq("function_id", fn.id)
+        .limit(1)
+        .maybeSingle();
 
-    if (configRes?.data) {
-      setConfigMap((prev) => ({
-        ...prev,
-        [fn.id]: {
-          ...configRes.data,
-          search_urls: (configRes.data.search_urls as any) || [],
-          client_fields: (configRes.data.client_fields as any) || [],
-        },
-      }));
-    }
-
-    if (testDataRes?.data) {
-      setTestDataMap((prev) => ({
-        ...prev,
-        [fn.id]: (testDataRes.data as any) || [],
-      }));
+      if (data) {
+        setConfigMap((prev) => ({
+          ...prev,
+          [fn.id]: {
+            ...data,
+            search_urls: (data.search_urls as any) || [],
+            client_fields: (data.client_fields as any) || [],
+          },
+        }));
+      }
     }
 
     setExpandedId(fn.id);
@@ -183,8 +167,7 @@ export default function AiAdmin() {
 
   const getSelectedInputData = (fnId: string): Record<string, string> => {
     const entryId = selectedTestData[fnId];
-    const entries = testDataMap[fnId] || [];
-    const entry = entries.find((e) => e.id === entryId);
+    const entry = allTestData.find((e) => e.id === entryId);
     return entry?.field_values || {};
   };
 
