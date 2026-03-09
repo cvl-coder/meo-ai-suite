@@ -117,6 +117,41 @@ export type Database = {
           },
         ]
       }
+      ai_test_data: {
+        Row: {
+          created_at: string
+          field_values: Json
+          function_id: string
+          id: string
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_values?: Json
+          function_id: string
+          id?: string
+          label?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_values?: Json
+          function_id?: string
+          id?: string
+          label?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_test_data_function_id_fkey"
+            columns: ["function_id"]
+            isOneToOne: false
+            referencedRelation: "ai_functions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

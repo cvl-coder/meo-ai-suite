@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
   "globe-search": Search,
@@ -176,6 +176,10 @@ export default function AiAdmin() {
           <p className="text-muted-foreground text-lg">
             Enable and configure AI-powered services for your MEO workspace.
           </p>
+          <Button variant="outline" size="sm" onClick={() => navigate("/ai-admin/test-data")} className="gap-2 mt-2">
+            <Database className="h-4 w-4" />
+            Manage Test Data
+          </Button>
         </div>
 
         {/* Function cards */}

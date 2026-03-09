@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AiAdmin from "./pages/AiAdmin";
 import AiSearchConfig from "./pages/AiSearchConfig";
+import AiTestData from "./pages/AiTestData";
 import Integration from "./pages/Integration";
 import NotFound from "./pages/NotFound";
 
@@ -20,6 +21,7 @@ const App = () => (
           <Route path="/" element={<Navigate to="/ai-admin" replace />} />
           <Route path="/ai-admin" element={<AiAdmin />} />
           <Route path="/ai-admin/search" element={<AiSearchConfig />} />
+          <Route path="/ai-admin/test-data" element={<AiTestData />} />
           <Route path="/integration" element={<Integration />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
