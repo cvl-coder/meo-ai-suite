@@ -40,6 +40,9 @@ type SearchConfig = {
   search_urls: SearchSource[];
   prompt_template: string;
   client_fields: ClientField[];
+  ai_endpoint_url: string;
+  ai_api_key: string;
+  ai_model: string;
 };
 
 type SearchResult = {
