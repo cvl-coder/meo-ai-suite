@@ -106,7 +106,16 @@ export default function AiAdmin() {
 
   useEffect(() => {
     fetchFunctions();
+    fetchAllTestData();
   }, []);
+
+  const fetchAllTestData = async () => {
+    const { data } = await supabase
+      .from("ai_test_data")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setAllTestData((data as any) || []);
+  };
 
   const toggleFunction = async (id: string, enabled: boolean) => {
     const { error } = await supabase
