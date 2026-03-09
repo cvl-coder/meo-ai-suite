@@ -48,7 +48,12 @@ serve(async (req) => {
     let aiModelName: string;
 
     if (useCustomAi) {
-      aiEndpoint = ai_endpoint_url;
+      // Ensure the endpoint ends with /chat/completions for OpenAI-compatible APIs
+      let baseUrl = ai_endpoint_url.replace(/\/+$/, "");
+      if (!baseUrl.endsWith("/chat/completions")) {
+        baseUrl += "/chat/completions";
+      }
+      aiEndpoint = baseUrl;
       aiApiKey = ai_api_key || "";
       aiModelName = ai_model || "";
     } else {
@@ -239,6 +244,8 @@ serve(async (req) => {
 
     console.log("Sending to AI for synthesis, context length:", scrapedContext.length);
 
+    console.log("AI endpoint:", aiEndpoint, "Model:", aiModelName, "Has API key:", !!aiApiKey);
+
     const aiResponse = await fetch(aiEndpoint, {
       method: "POST",
       headers: {
@@ -263,7 +270,7 @@ serve(async (req) => {
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errText);
+      console.error("AI error:", aiResponse.status, errText);
 
       if (aiResponse.status === 429) {
         return new Response(
@@ -277,9 +284,15 @@ serve(async (req) => {
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      if (aiResponse.status === 401) {
+        return new Response(
+          JSON.stringify({ success: false, error: `AI authentication failed (401). Check your API key and endpoint URL. Endpoint: ${aiEndpoint}` }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       return new Response(
-        JSON.stringify({ success: false, error: "AI synthesis failed" }),
+        JSON.stringify({ success: false, error: `AI synthesis failed (${aiResponse.status}): ${errText.substring(0, 200)}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
