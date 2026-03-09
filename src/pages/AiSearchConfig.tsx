@@ -139,8 +139,15 @@ export default function AiSearchConfig() {
 
   const addUrl = () => {
     if (!newUrl.trim() || !config) return;
-    setConfig({ ...config, search_urls: [...config.search_urls, newUrl.trim()] });
+    const newSource: SearchSource = {
+      url: newUrl.trim(),
+      type: newSourceType,
+      description: newSourceDesc.trim(),
+    };
+    setConfig({ ...config, search_urls: [...config.search_urls, newSource] });
     setNewUrl("");
+    setNewSourceType("search");
+    setNewSourceDesc("");
   };
 
   const removeUrl = (index: number) => {
@@ -149,6 +156,13 @@ export default function AiSearchConfig() {
       ...config,
       search_urls: config.search_urls.filter((_, i) => i !== index),
     });
+  };
+
+  const updateSource = (index: number, updates: Partial<SearchSource>) => {
+    if (!config) return;
+    const urls = [...config.search_urls];
+    urls[index] = { ...urls[index], ...updates };
+    setConfig({ ...config, search_urls: urls });
   };
 
   const addField = () => {
