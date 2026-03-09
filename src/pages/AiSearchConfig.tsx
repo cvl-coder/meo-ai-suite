@@ -92,9 +92,16 @@ export default function AiSearchConfig() {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else if (data) {
+      // Migrate old string[] format to new SearchSource[] format
+      const rawUrls = (data.search_urls as any) || [];
+      const migratedUrls: SearchSource[] = rawUrls.map((item: any) =>
+        typeof item === "string"
+          ? { url: item, type: "search" as SourceType, description: "" }
+          : item
+      );
       setConfig({
         ...data,
-        search_urls: (data.search_urls as any) || [],
+        search_urls: migratedUrls,
         client_fields: (data.client_fields as any) || [],
       });
     }
