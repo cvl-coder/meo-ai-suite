@@ -176,6 +176,10 @@ export default function AiAdmin() {
           <p className="text-muted-foreground text-lg">
             Enable and configure AI-powered services for your MEO workspace.
           </p>
+          <Button variant="outline" size="sm" onClick={() => navigate("/ai-admin/test-data")} className="gap-2 mt-2">
+            <Database className="h-4 w-4" />
+            Manage Test Data
+          </Button>
         </div>
 
         {/* Function cards */}
