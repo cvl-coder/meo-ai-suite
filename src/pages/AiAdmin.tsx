@@ -355,7 +355,7 @@ export default function AiAdmin() {
                                       <SelectValue placeholder="Choose a test data set..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {(testDataMap[fn.id] || []).map((entry) => (
+                                      {allTestData.map((entry) => (
                                         <SelectItem key={entry.id} value={entry.id}>
                                           {entry.label}
                                         </SelectItem>
