@@ -14,7 +14,109 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_functions: {
+        Row: {
+          created_at: string
+          description: string | null
+          enabled: boolean
+          icon: string | null
+          id: string
+          name: string
+          type: Database["public"]["Enums"]["ai_function_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          icon?: string | null
+          id?: string
+          name: string
+          type?: Database["public"]["Enums"]["ai_function_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          icon?: string | null
+          id?: string
+          name?: string
+          type?: Database["public"]["Enums"]["ai_function_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_search_configs: {
+        Row: {
+          client_fields: Json
+          function_id: string
+          id: string
+          prompt_template: string
+          search_urls: Json
+          updated_at: string
+        }
+        Insert: {
+          client_fields?: Json
+          function_id: string
+          id?: string
+          prompt_template?: string
+          search_urls?: Json
+          updated_at?: string
+        }
+        Update: {
+          client_fields?: Json
+          function_id?: string
+          id?: string
+          prompt_template?: string
+          search_urls?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_search_configs_function_id_fkey"
+            columns: ["function_id"]
+            isOneToOne: false
+            referencedRelation: "ai_functions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_search_results: {
+        Row: {
+          client_data: Json
+          config_id: string
+          created_at: string
+          id: string
+          results: Json
+          status: string
+        }
+        Insert: {
+          client_data?: Json
+          config_id: string
+          created_at?: string
+          id?: string
+          results?: Json
+          status?: string
+        }
+        Update: {
+          client_data?: Json
+          config_id?: string
+          created_at?: string
+          id?: string
+          results?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_search_results_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "ai_search_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +125,11 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      ai_function_type:
+        | "external_search"
+        | "summarizer"
+        | "classifier"
+        | "custom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +256,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      ai_function_type: [
+        "external_search",
+        "summarizer",
+        "classifier",
+        "custom",
+      ],
+    },
   },
 } as const
