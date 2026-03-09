@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye } from "lucide-react";
+import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye, Brain } from "lucide-react";
 
 const SOURCE_TYPES = [
   { value: "search", label: "Web Search", description: "Search the domain for relevant results using keywords", icon: Search },
