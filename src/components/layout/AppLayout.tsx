@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Brain, Settings, Plug, Search, Database } from "lucide-react";
+import { Brain, Plug, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
