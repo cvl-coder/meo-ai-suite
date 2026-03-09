@@ -58,7 +58,7 @@ export default function AiAdmin() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [configMap, setConfigMap] = useState<Record<string, SearchConfig>>({});
-  const [testDataMap, setTestDataMap] = useState<Record<string, TestDataEntry[]>>({});
+  const [allTestData, setAllTestData] = useState<TestDataEntry[]>([]);
   const [selectedTestData, setSelectedTestData] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -106,7 +106,16 @@ export default function AiAdmin() {
 
   useEffect(() => {
     fetchFunctions();
+    fetchAllTestData();
   }, []);
+
+  const fetchAllTestData = async () => {
+    const { data } = await supabase
+      .from("ai_test_data")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setAllTestData((data as any) || []);
+  };
 
   const toggleFunction = async (id: string, enabled: boolean) => {
     const { error } = await supabase
@@ -131,41 +140,25 @@ export default function AiAdmin() {
       return;
     }
 
-    // Load config and test data in parallel
-    const [configRes, testDataRes] = await Promise.all([
-      configMap[fn.id]
-        ? Promise.resolve(null)
-        : supabase
-            .from("ai_search_configs")
-            .select("*")
-            .eq("function_id", fn.id)
-            .limit(1)
-            .single(),
-      testDataMap[fn.id]
-        ? Promise.resolve(null)
-        : supabase
-            .from("ai_test_data")
-            .select("*")
-            .eq("function_id", fn.id)
-            .order("created_at", { ascending: false }),
-    ]);
+    // Load config
+    if (!configMap[fn.id]) {
+      const { data } = await supabase
+        .from("ai_search_configs")
+        .select("*")
+        .eq("function_id", fn.id)
+        .limit(1)
+        .maybeSingle();
 
-    if (configRes?.data) {
-      setConfigMap((prev) => ({
-        ...prev,
-        [fn.id]: {
-          ...configRes.data,
-          search_urls: (configRes.data.search_urls as any) || [],
-          client_fields: (configRes.data.client_fields as any) || [],
-        },
-      }));
-    }
-
-    if (testDataRes?.data) {
-      setTestDataMap((prev) => ({
-        ...prev,
-        [fn.id]: (testDataRes.data as any) || [],
-      }));
+      if (data) {
+        setConfigMap((prev) => ({
+          ...prev,
+          [fn.id]: {
+            ...data,
+            search_urls: (data.search_urls as any) || [],
+            client_fields: (data.client_fields as any) || [],
+          },
+        }));
+      }
     }
 
     setExpandedId(fn.id);
@@ -174,8 +167,7 @@ export default function AiAdmin() {
 
   const getSelectedInputData = (fnId: string): Record<string, string> => {
     const entryId = selectedTestData[fnId];
-    const entries = testDataMap[fnId] || [];
-    const entry = entries.find((e) => e.id === entryId);
+    const entry = allTestData.find((e) => e.id === entryId);
     return entry?.field_values || {};
   };
 
@@ -343,7 +335,7 @@ export default function AiAdmin() {
                           <>
                             <div className="space-y-3">
                               <Label className="text-sm font-medium">Select Test Data</Label>
-                              {(testDataMap[fn.id] || []).length === 0 ? (
+                              {allTestData.length === 0 ? (
                                 <div className="flex items-center gap-3 py-4">
                                   <p className="text-sm text-muted-foreground">No test data available.</p>
                                   <Button variant="outline" size="sm" onClick={() => navigate("/ai-admin/test-data")} className="gap-1.5">
@@ -363,7 +355,7 @@ export default function AiAdmin() {
                                       <SelectValue placeholder="Choose a test data set..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {(testDataMap[fn.id] || []).map((entry) => (
+                                      {allTestData.map((entry) => (
                                         <SelectItem key={entry.id} value={entry.id}>
                                           {entry.label}
                                         </SelectItem>
