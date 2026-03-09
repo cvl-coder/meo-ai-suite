@@ -329,6 +329,51 @@ export default function AiSearchConfig() {
             </TabsTrigger>
           </TabsList>
 
+          {/* AI Model */}
+          <TabsContent value="ai-model">
+            <Card>
+              <CardHeader>
+                <CardTitle>Custom AI Model</CardTitle>
+                <CardDescription>
+                  Connect your own AI model endpoint. Leave empty to use the default Lovable AI gateway.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Endpoint URL</Label>
+                  <Input
+                    placeholder="https://your-server.com/v1/chat/completions"
+                    value={config.ai_endpoint_url}
+                    onChange={(e) => setConfig({ ...config, ai_endpoint_url: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">Must be OpenAI-compatible (POST /v1/chat/completions)</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>API Key</Label>
+                  <Input
+                    type="password"
+                    placeholder="sk-..."
+                    value={config.ai_api_key}
+                    onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Model Name</Label>
+                  <Input
+                    placeholder="e.g. gpt-4, llama-3, mistral-large"
+                    value={config.ai_model}
+                    onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
+                  />
+                </div>
+                {config.ai_endpoint_url && (
+                  <Badge variant="outline" className="text-xs">
+                    Custom AI: {config.ai_endpoint_url}
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Search Sources */}
           <TabsContent value="sources">
             <Card>
