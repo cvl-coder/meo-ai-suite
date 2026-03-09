@@ -142,25 +142,44 @@ export default function AiSearchConfig() {
     setTestRunning(true);
     setTestResult(null);
 
-    // Save test run to history
-    const { data: result, error } = await supabase
-      .from("ai_search_results")
-      .insert({
+    try {
+      // Call the ai-search edge function
+      const { data: fnData, error: fnError } = await supabase.functions.invoke("ai-search", {
+        body: {
+          client_data: testData,
+          search_urls: config.search_urls,
+          prompt_template: config.prompt_template,
+        },
+      });
+
+      if (fnError) {
+        toast({ title: "Search failed", description: fnError.message, variant: "destructive" });
+        setTestRunning(false);
+        return;
+      }
+
+      if (fnData && !fnData.success) {
+        toast({ title: "Search failed", description: fnData.error || "Unknown error", variant: "destructive" });
+        setTestRunning(false);
+        return;
+      }
+
+      setTestResult(fnData);
+
+      // Save to history
+      await supabase.from("ai_search_results").insert({
         config_id: config.id,
         client_data: testData as any,
-        results: { message: "Test search executed (connect Firecrawl + Perplexity for live results)", testData } as any,
+        results: fnData as any,
         status: "completed",
-      })
-      .select()
-      .single();
+      });
 
-    if (error) {
-      toast({ title: "Test failed", description: error.message, variant: "destructive" });
-    } else {
-      setTestResult(result?.results);
-      toast({ title: "Test search completed" });
+      toast({ title: "Search completed successfully" });
       fetchHistory();
+    } catch (err: any) {
+      toast({ title: "Search failed", description: err.message || "Unexpected error", variant: "destructive" });
     }
+
     setTestRunning(false);
   };
 
