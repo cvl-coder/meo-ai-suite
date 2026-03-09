@@ -31,7 +31,7 @@ serve(async (req) => {
   }
 
   try {
-    const { client_data, search_urls, prompt_template } = await req.json();
+    const { client_data, search_urls, prompt_template, ai_endpoint_url, ai_api_key, ai_model } = await req.json();
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     if (!FIRECRAWL_API_KEY) {
