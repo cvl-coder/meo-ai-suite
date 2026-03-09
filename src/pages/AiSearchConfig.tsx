@@ -306,7 +306,11 @@ export default function AiSearchConfig() {
         </div>
 
         <Tabs defaultValue="sources" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="ai-model" className="gap-2">
+              <Brain className="h-4 w-4" />
+              AI Model
+            </TabsTrigger>
             <TabsTrigger value="sources" className="gap-2">
               <Globe className="h-4 w-4" />
               Sources
