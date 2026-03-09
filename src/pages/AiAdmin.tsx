@@ -160,9 +160,8 @@ export default function AiAdmin() {
     setRunning(false);
   };
 
-  const getConfigRoute = (type: string) => {
-    if (type === "external_search") return "/ai-admin/search";
-    return "/ai-admin";
+  const getConfigRoute = (fnId: string) => {
+    return `/ai-admin/config/${fnId}`;
   };
 
   return (
