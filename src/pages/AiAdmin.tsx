@@ -245,7 +245,7 @@ export default function AiAdmin() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(getConfigRoute(fn.type))}
+                          onClick={() => navigate(getConfigRoute(fn.id))}
                           className="gap-1.5"
                         >
                           <Settings className="h-4 w-4" />
