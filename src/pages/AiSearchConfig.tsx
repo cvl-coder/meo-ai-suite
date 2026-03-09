@@ -233,6 +233,9 @@ export default function AiSearchConfig() {
           client_data: testData,
           search_urls: config.search_urls,
           prompt_template: config.prompt_template,
+          ai_endpoint_url: config.ai_endpoint_url || undefined,
+          ai_api_key: config.ai_api_key || undefined,
+          ai_model: config.ai_model || undefined,
         },
       });
 
