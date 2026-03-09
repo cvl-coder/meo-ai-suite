@@ -20,7 +20,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/ai-admin" replace />} />
           <Route path="/ai-admin" element={<AiAdmin />} />
-          <Route path="/ai-admin/search" element={<AiSearchConfig />} />
+          <Route path="/ai-admin/config/:functionId" element={<AiSearchConfig />} />
           <Route path="/ai-admin/test-data" element={<AiTestData />} />
           <Route path="/integration" element={<Integration />} />
           <Route path="*" element={<NotFound />} />

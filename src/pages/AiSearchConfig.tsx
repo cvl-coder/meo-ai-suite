@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,9 @@ type SearchResult = {
 };
 
 export default function AiSearchConfig() {
+  const { functionId } = useParams<{ functionId: string }>();
   const [config, setConfig] = useState<SearchConfig | null>(null);
+  const [functionName, setFunctionName] = useState("AI Function");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newUrl, setNewUrl] = useState("");
@@ -45,14 +48,27 @@ export default function AiSearchConfig() {
   const [history, setHistory] = useState<SearchResult[]>([]);
 
   useEffect(() => {
-    fetchConfig();
-    fetchHistory();
-  }, []);
+    if (functionId) {
+      fetchFunctionName();
+      fetchConfig();
+      fetchHistory();
+    }
+  }, [functionId]);
+
+  const fetchFunctionName = async () => {
+    const { data } = await supabase
+      .from("ai_functions")
+      .select("name")
+      .eq("id", functionId!)
+      .single();
+    if (data) setFunctionName(data.name);
+  };
 
   const fetchConfig = async () => {
     const { data, error } = await supabase
       .from("ai_search_configs")
       .select("*")
+      .eq("function_id", functionId!)
       .limit(1)
       .single();
 
@@ -209,7 +225,7 @@ export default function AiSearchConfig() {
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              External AI Search
+              {functionName} Config
             </h1>
             <p className="text-muted-foreground">
               Configure search sources, prompts, and client data fields.
