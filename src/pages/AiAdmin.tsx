@@ -62,7 +62,33 @@ export default function AiAdmin() {
   const [selectedTestData, setSelectedTestData] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newFn, setNewFn] = useState({ name: "", description: "", type: "external_search" as string, icon: "search" });
+  const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
+
+  const createFunction = async () => {
+    if (!newFn.name.trim()) {
+      toast({ title: "Name is required", variant: "destructive" });
+      return;
+    }
+    setCreating(true);
+    const { data, error } = await supabase
+      .from("ai_functions")
+      .insert({ name: newFn.name, description: newFn.description || null, type: newFn.type as any, icon: newFn.icon })
+      .select()
+      .single();
+    setCreating(false);
+
+    if (error) {
+      toast({ title: "Error creating function", description: error.message, variant: "destructive" });
+    } else {
+      setFunctions((prev) => [...prev, data as any]);
+      setShowAddDialog(false);
+      setNewFn({ name: "", description: "", type: "external_search", icon: "search" });
+      toast({ title: "Function created" });
+    }
+  };
 
   const fetchFunctions = async () => {
     const { data, error } = await supabase
