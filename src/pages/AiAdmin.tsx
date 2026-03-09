@@ -310,44 +310,59 @@ export default function AiAdmin() {
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                             Loading configuration...
                           </div>
-                        ) : config.client_fields.length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-4">
-                            No input fields configured. Go to Configure to add client fields.
-                          </p>
                         ) : (
                           <>
-                            <div className="grid gap-4 md:grid-cols-2">
-                              {config.client_fields.map((field) => (
-                                <div key={field.key} className="space-y-1.5">
-                                  <Label className="text-sm">
-                                    {field.label}
-                                    {field.required && <span className="text-destructive ml-1">*</span>}
-                                  </Label>
-                                  {field.type === "textarea" ? (
-                                    <Textarea
-                                      value={inputData[field.key] || ""}
-                                      onChange={(e) =>
-                                        setInputData({ ...inputData, [field.key]: e.target.value })
-                                      }
-                                      placeholder={`Enter ${field.label.toLowerCase()}`}
-                                      className="resize-none"
-                                      rows={3}
-                                    />
-                                  ) : (
-                                    <Input
-                                      value={inputData[field.key] || ""}
-                                      onChange={(e) =>
-                                        setInputData({ ...inputData, [field.key]: e.target.value })
-                                      }
-                                      placeholder={`Enter ${field.label.toLowerCase()}`}
-                                    />
-                                  )}
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium">Select Test Data</Label>
+                              {(testDataMap[fn.id] || []).length === 0 ? (
+                                <div className="flex items-center gap-3 py-4">
+                                  <p className="text-sm text-muted-foreground">No test data available.</p>
+                                  <Button variant="outline" size="sm" onClick={() => navigate("/ai-admin/test-data")} className="gap-1.5">
+                                    <Database className="h-3.5 w-3.5" />
+                                    Add Test Data
+                                  </Button>
                                 </div>
-                              ))}
+                              ) : (
+                                <>
+                                  <Select
+                                    value={selectedTestData[fn.id] || ""}
+                                    onValueChange={(val) =>
+                                      setSelectedTestData((prev) => ({ ...prev, [fn.id]: val }))
+                                    }
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Choose a test data set..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {(testDataMap[fn.id] || []).map((entry) => (
+                                        <SelectItem key={entry.id} value={entry.id}>
+                                          {entry.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  {/* Preview selected data */}
+                                  {selectedTestData[fn.id] && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {Object.entries(getSelectedInputData(fn.id)).map(([key, val]) => {
+                                        if (!val) return null;
+                                        const field = config.client_fields.find((f) => f.key === key);
+                                        return (
+                                          <Badge key={key} variant="outline" className="text-xs">
+                                            {field?.label || key}: {val}
+                                          </Badge>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </div>
+
                             <Button
                               onClick={() => runFunction(fn)}
-                              disabled={running}
+                              disabled={running || !selectedTestData[fn.id]}
                               className="gap-2"
                             >
                               {running ? (
