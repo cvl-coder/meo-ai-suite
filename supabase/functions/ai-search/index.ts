@@ -48,7 +48,12 @@ serve(async (req) => {
     let aiModelName: string;
 
     if (useCustomAi) {
-      aiEndpoint = ai_endpoint_url;
+      // Ensure the endpoint ends with /chat/completions for OpenAI-compatible APIs
+      let baseUrl = ai_endpoint_url.replace(/\/+$/, "");
+      if (!baseUrl.endsWith("/chat/completions")) {
+        baseUrl += "/chat/completions";
+      }
+      aiEndpoint = baseUrl;
       aiApiKey = ai_api_key || "";
       aiModelName = ai_model || "";
     } else {
