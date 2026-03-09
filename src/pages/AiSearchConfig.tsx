@@ -10,7 +10,22 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye } from "lucide-react";
+
+const SOURCE_TYPES = [
+  { value: "search", label: "Web Search", description: "Search the domain for relevant results using keywords", icon: Search },
+  { value: "scrape", label: "Scrape Page", description: "Extract content directly from the URL", icon: Eye },
+  { value: "file_download", label: "Download & Parse File", description: "Download a file (Excel, CSV, PDF) from the URL and search through it", icon: Download },
+] as const;
+
+type SourceType = typeof SOURCE_TYPES[number]["value"];
+
+type SearchSource = {
+  url: string;
+  type: SourceType;
+  description: string;
+};
 
 type ClientField = {
   key: string;
@@ -22,7 +37,7 @@ type ClientField = {
 type SearchConfig = {
   id: string;
   function_id: string;
-  search_urls: string[];
+  search_urls: SearchSource[];
   prompt_template: string;
   client_fields: ClientField[];
 };
@@ -42,6 +57,8 @@ export default function AiSearchConfig() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newUrl, setNewUrl] = useState("");
+  const [newSourceType, setNewSourceType] = useState<SourceType>("search");
+  const [newSourceDesc, setNewSourceDesc] = useState("");
   const [testData, setTestData] = useState<Record<string, string>>({});
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
@@ -75,9 +92,16 @@ export default function AiSearchConfig() {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else if (data) {
+      // Migrate old string[] format to new SearchSource[] format
+      const rawUrls = (data.search_urls as any) || [];
+      const migratedUrls: SearchSource[] = rawUrls.map((item: any) =>
+        typeof item === "string"
+          ? { url: item, type: "search" as SourceType, description: "" }
+          : item
+      );
       setConfig({
         ...data,
-        search_urls: (data.search_urls as any) || [],
+        search_urls: migratedUrls,
         client_fields: (data.client_fields as any) || [],
       });
     }
@@ -115,8 +139,15 @@ export default function AiSearchConfig() {
 
   const addUrl = () => {
     if (!newUrl.trim() || !config) return;
-    setConfig({ ...config, search_urls: [...config.search_urls, newUrl.trim()] });
+    const newSource: SearchSource = {
+      url: newUrl.trim(),
+      type: newSourceType,
+      description: newSourceDesc.trim(),
+    };
+    setConfig({ ...config, search_urls: [...config.search_urls, newSource] });
     setNewUrl("");
+    setNewSourceType("search");
+    setNewSourceDesc("");
   };
 
   const removeUrl = (index: number) => {
@@ -125,6 +156,13 @@ export default function AiSearchConfig() {
       ...config,
       search_urls: config.search_urls.filter((_, i) => i !== index),
     });
+  };
+
+  const updateSource = (index: number, updates: Partial<SearchSource>) => {
+    if (!config) return;
+    const urls = [...config.search_urls];
+    urls[index] = { ...urls[index], ...updates };
+    setConfig({ ...config, search_urls: urls });
   };
 
   const addField = () => {
@@ -263,41 +301,99 @@ export default function AiSearchConfig() {
               <CardHeader>
                 <CardTitle>Search Sources</CardTitle>
                 <CardDescription>
-                  Define the URLs that will be scraped for client information.
+                  Define URLs and how each source should be used for research.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
+              <CardContent className="space-y-6">
+                {/* Add new source */}
+                <div className="space-y-3 rounded-lg border border-dashed p-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="https://example.com"
+                      value={newUrl}
+                      onChange={(e) => setNewUrl(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Select value={newSourceType} onValueChange={(v) => setNewSourceType(v as SourceType)}>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SOURCE_TYPES.map((st) => (
+                          <SelectItem key={st.value} value={st.value}>
+                            {st.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <Input
-                    placeholder="https://example.com"
-                    value={newUrl}
-                    onChange={(e) => setNewUrl(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addUrl()}
+                    placeholder="Optional: describe how this source should be used..."
+                    value={newSourceDesc}
+                    onChange={(e) => setNewSourceDesc(e.target.value)}
                   />
-                  <Button onClick={addUrl} size="icon" variant="outline">
+                  <Button onClick={addUrl} variant="outline" size="sm" className="gap-1.5">
                     <Plus className="h-4 w-4" />
+                    Add Source
                   </Button>
                 </div>
-                <div className="space-y-2">
-                  {config.search_urls.map((url, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between rounded-lg border bg-card p-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{url}</span>
+
+                {/* Source list */}
+                <div className="space-y-3">
+                  {config.search_urls.map((source, i) => {
+                    const sourceType = SOURCE_TYPES.find((st) => st.value === source.type) || SOURCE_TYPES[0];
+                    const IconComp = sourceType.icon;
+                    return (
+                      <div key={i} className="rounded-lg border bg-card p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <IconComp className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="text-sm font-medium truncate">{source.url}</span>
+                            <Badge variant="secondary" className="shrink-0 text-xs">
+                              {sourceType.label}
+                            </Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeUrl(i)}
+                            className="h-8 w-8 shrink-0 text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Source Type</Label>
+                            <Select value={source.type} onValueChange={(v) => updateSource(i, { type: v as SourceType })}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {SOURCE_TYPES.map((st) => (
+                                  <SelectItem key={st.value} value={st.value}>
+                                    <div className="flex flex-col">
+                                      <span>{st.label}</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Instructions</Label>
+                            <Input
+                              value={source.description}
+                              onChange={(e) => updateSource(i, { description: e.target.value })}
+                              placeholder="How to use this source..."
+                              className="h-9"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{sourceType.description}</p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeUrl(i)}
-                        className="h-8 w-8 text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {config.search_urls.length === 0 && (
                     <p className="py-8 text-center text-sm text-muted-foreground">
                       No search sources added yet.
