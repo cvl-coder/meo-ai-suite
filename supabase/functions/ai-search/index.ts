@@ -43,11 +43,15 @@ serve(async (req) => {
 
     // Determine AI endpoint: use custom if provided, else Lovable AI gateway
     const useCustomAi = !!ai_endpoint_url;
-    const aiEndpoint = useCustomAi ? ai_endpoint_url : "https://ai.gateway.lovable.dev/v1/chat/completions";
-    const aiApiKey = useCustomAi ? (ai_api_key || "") : LOVABLE_API_KEY;
-    const aiModelName = ai_model || (useCustomAi ? "" : "google/gemini-2.5-flash");
+    let aiEndpoint: string;
+    let aiApiKey: string;
+    let aiModelName: string;
 
-    if (!useCustomAi) {
+    if (useCustomAi) {
+      aiEndpoint = ai_endpoint_url;
+      aiApiKey = ai_api_key || "";
+      aiModelName = ai_model || "";
+    } else {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) {
         return new Response(
@@ -55,6 +59,9 @@ serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      aiEndpoint = "https://ai.gateway.lovable.dev/v1/chat/completions";
+      aiApiKey = LOVABLE_API_KEY;
+      aiModelName = "google/gemini-2.5-flash";
     }
 
     // Step 1: Build the prompt by replacing {{variables}}
