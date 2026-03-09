@@ -241,27 +241,43 @@ serve(async (req) => {
 
     console.log("AI endpoint:", aiEndpoint, "Model:", aiModelName, "Has API key:", !!aiApiKey);
 
-    const aiResponse = await fetch(aiEndpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${aiApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: aiModelName || undefined,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an AI research assistant for MEO workspace. Synthesize the scraped web content to answer the user's research prompt. Provide structured, actionable findings with source citations. Format your response as markdown with clear sections.",
-          },
-          {
-            role: "user",
-            content: `## Research Prompt\n${prompt}\n\n## Scraped Data from Sources\n${scrapedContext}`,
-          },
-        ],
-      }),
-    });
+    let aiResponse: Response;
+    try {
+      aiResponse = await fetch(aiEndpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${aiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: aiModelName || undefined,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an AI research assistant for MEO workspace. Synthesize the scraped web content to answer the user's research prompt. Provide structured, actionable findings with source citations. Format your response as markdown with clear sections.",
+            },
+            {
+              role: "user",
+              content: `## Research Prompt\n${prompt}\n\n## Scraped Data from Sources\n${scrapedContext}`,
+            },
+          ],
+        }),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const isTlsSniError = /UnrecognisedName/i.test(message);
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: isTlsSniError
+            ? "Cannot connect to custom AI endpoint due TLS/SNI mismatch (UnrecognisedName). Please use a hostname with a valid certificate for this domain, or provide a reachable HTTP endpoint."
+            : `Failed to reach AI endpoint: ${message}`,
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
