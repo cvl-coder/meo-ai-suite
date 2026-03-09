@@ -335,7 +335,7 @@ export default function AiAdmin() {
                           <>
                             <div className="space-y-3">
                               <Label className="text-sm font-medium">Select Test Data</Label>
-                              {(testDataMap[fn.id] || []).length === 0 ? (
+                              {allTestData.length === 0 ? (
                                 <div className="flex items-center gap-3 py-4">
                                   <p className="text-sm text-muted-foreground">No test data available.</p>
                                   <Button variant="outline" size="sm" onClick={() => navigate("/ai-admin/test-data")} className="gap-1.5">
