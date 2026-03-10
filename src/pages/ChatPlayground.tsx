@@ -11,17 +11,6 @@ import { toast } from "@/hooks/use-toast";
 import { Send, Loader2, Trash2, Settings2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-const LOVABLE_MODELS = [
-  { value: "google/gemini-3-flash-preview", label: "Gemini 3 Flash (Preview)" },
-  { value: "google/gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (Preview)" },
-  { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-  { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { value: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-  { value: "openai/gpt-5", label: "GPT-5" },
-  { value: "openai/gpt-5-mini", label: "GPT-5 Mini" },
-  { value: "openai/gpt-5-nano", label: "GPT-5 Nano" },
-  { value: "openai/gpt-5.2", label: "GPT-5.2" },
-];
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 
