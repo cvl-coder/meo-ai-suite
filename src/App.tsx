@@ -7,6 +7,7 @@ import AiAdmin from "./pages/AiAdmin";
 import AiSearchConfig from "./pages/AiSearchConfig";
 import AiTestData from "./pages/AiTestData";
 import Integration from "./pages/Integration";
+import ChatPlayground from "./pages/ChatPlayground";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
