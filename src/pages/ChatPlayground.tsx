@@ -5,20 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 import { Send, Loader2, Trash2, Settings2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 export default function ChatPlayground() {
-  const [provider, setProvider] = useState<"lovable" | "custom">("lovable");
-  const [model, setModel] = useState("google/gemini-3-flash-preview");
   const [customEndpoint, setCustomEndpoint] = useState("http://core.meo.io/v1");
   const [customApiKey, setCustomApiKey] = useState("");
   const [customModel, setCustomModel] = useState("llama3.1:latest");
@@ -36,16 +32,11 @@ export default function ChatPlayground() {
   const streamChat = async (allMessages: Msg[]) => {
     const body: any = {
       messages: [{ role: "system", content: systemPrompt }, ...allMessages],
-      provider,
+      provider: "custom",
+      model: customModel,
+      custom_endpoint: customEndpoint,
+      custom_api_key: customApiKey,
     };
-
-    if (provider === "custom") {
-      body.model = customModel;
-      body.custom_endpoint = customEndpoint;
-      body.custom_api_key = customApiKey;
-    } else {
-      body.model = model;
-    }
 
     const resp = await fetch(CHAT_URL, {
       method: "POST",
@@ -124,9 +115,6 @@ export default function ChatPlayground() {
     }
   };
 
-  const activeModel = provider === "custom" ? customModel : model;
-  const activeProvider = provider === "custom" ? customEndpoint : "Lovable AI";
-
   return (
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-4rem)] gap-4 p-6">
@@ -134,7 +122,7 @@ export default function ChatPlayground() {
           <div>
             <h1 className="text-2xl font-bold font-['Space_Grotesk'] text-foreground">Chat Playground</h1>
             <p className="text-sm text-muted-foreground">
-              {activeProvider} · {activeModel}
+              {customEndpoint} · {customModel}
             </p>
           </div>
           <div className="flex gap-2">
@@ -155,45 +143,17 @@ export default function ChatPlayground() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Provider</Label>
-                  <Select value={provider} onValueChange={(v: "lovable" | "custom") => setProvider(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="lovable">Lovable AI</SelectItem>
-                      <SelectItem value="custom">Custom Endpoint</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Endpoint URL</Label>
+                  <Input value={customEndpoint} onChange={(e) => setCustomEndpoint(e.target.value)} placeholder="http://your-server.com/v1" />
                 </div>
-
-                {provider === "lovable" ? (
-                  <div className="space-y-2">
-                    <Label>Model</Label>
-                    <Select value={model} onValueChange={setModel}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {LOVABLE_MODELS.map((m) => (
-                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Endpoint URL</Label>
-                      <Input value={customEndpoint} onChange={(e) => setCustomEndpoint(e.target.value)} placeholder="http://your-server.com/v1" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>API Key</Label>
-                      <Input type="password" value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} placeholder="Optional" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Model</Label>
-                      <Input value={customModel} onChange={(e) => setCustomModel(e.target.value)} placeholder="e.g. llama3.1:latest" />
-                    </div>
-                  </>
-                )}
-
+                <div className="space-y-2">
+                  <Label>API Key</Label>
+                  <Input type="password" value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} placeholder="Optional" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Model</Label>
+                  <Input value={customModel} onChange={(e) => setCustomModel(e.target.value)} placeholder="e.g. llama3.1:latest" />
+                </div>
                 <div className="space-y-2">
                   <Label>System Prompt</Label>
                   <Textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={4} className="text-xs" />
