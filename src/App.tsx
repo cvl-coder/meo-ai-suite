@@ -24,6 +24,7 @@ const App = () => (
           <Route path="/ai-admin/config/:functionId" element={<AiSearchConfig />} />
           <Route path="/ai-admin/test-data" element={<AiTestData />} />
           <Route path="/integration" element={<Integration />} />
+          <Route path="/chat" element={<ChatPlayground />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
