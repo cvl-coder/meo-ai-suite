@@ -11,12 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye, Brain } from "lucide-react";
+import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye, Brain, Type } from "lucide-react";
 
 const SOURCE_TYPES = [
   { value: "search", label: "Web Search", description: "Search the domain for relevant results using keywords", icon: Search },
   { value: "scrape", label: "Scrape Page", description: "Extract content directly from the URL", icon: Eye },
   { value: "file_download", label: "Download & Parse File", description: "Download a file (Excel, CSV, PDF) from the URL and search through it", icon: Download },
+  { value: "text", label: "Text", description: "Use pasted text directly as a research source", icon: Type },
 ] as const;
 
 type SourceType = typeof SOURCE_TYPES[number]["value"];

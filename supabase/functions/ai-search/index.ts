@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type SourceType = "search" | "scrape" | "file_download";
+type SourceType = "search" | "scrape" | "file_download" | "text";
 
 type SearchSource = {
   url: string;
@@ -18,9 +18,11 @@ function normalizeSource(item: any): SearchSource {
   if (typeof item === "string") {
     return { url: item, type: "search", description: "" };
   }
+
+  const normalizedType: SourceType = item.type || "search";
   return {
     url: item.url || "",
-    type: item.type || "search",
+    type: normalizedType,
     description: item.description || "",
   };
 }
