@@ -396,25 +396,41 @@ export default function AiSearchConfig() {
               <CardContent className="space-y-6">
                 {/* Add new source */}
                 <div className="space-y-3 rounded-lg border border-dashed p-4">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="https://example.com"
-                      value={newUrl}
-                      onChange={(e) => setNewUrl(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Select value={newSourceType} onValueChange={(v) => setNewSourceType(v as SourceType)}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SOURCE_TYPES.map((st) => (
-                          <SelectItem key={st.value} value={st.value}>
-                            {st.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex gap-2 max-md:flex-col">
+                    <div className="flex-1 space-y-2">
+                      <Label className="text-xs text-muted-foreground">{getSourceValueLabel(newSourceType)}</Label>
+                      {newSourceType === "text" ? (
+                        <Textarea
+                          placeholder={getSourceValuePlaceholder(newSourceType)}
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          rows={5}
+                          className="min-h-28"
+                        />
+                      ) : (
+                        <Input
+                          placeholder={getSourceValuePlaceholder(newSourceType)}
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          className="flex-1"
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Source Type</Label>
+                      <Select value={newSourceType} onValueChange={(v) => setNewSourceType(v as SourceType)}>
+                        <SelectTrigger className="w-full md:w-[200px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SOURCE_TYPES.map((st) => (
+                            <SelectItem key={st.value} value={st.value}>
+                              {st.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <Input
                     placeholder="Optional: describe how this source should be used..."
