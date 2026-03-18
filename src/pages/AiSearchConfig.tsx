@@ -181,6 +181,12 @@ export default function AiSearchConfig() {
     setNewSourceDesc("");
   };
 
+  const getSourceValueLabel = (type: SourceType) =>
+    type === "text" ? "Text Content" : "Source URL";
+
+  const getSourceValuePlaceholder = (type: SourceType) =>
+    type === "text" ? "Paste text content here..." : "https://example.com";
+
   const removeUrl = (index: number) => {
     if (!config) return;
     setConfig({
