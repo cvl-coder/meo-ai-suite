@@ -88,6 +88,16 @@ serve(async (req) => {
 
     const processPromises = sources.map(async (source) => {
       try {
+        if (source.type === "text") {
+          const textContent = source.url.trim();
+          scrapeResults.push({
+            url: source.description || "Pasted text",
+            type: source.type,
+            content: textContent || "No text provided",
+          });
+          return;
+        }
+
         let formattedUrl = source.url.trim();
         if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
           formattedUrl = `https://${formattedUrl}`;
