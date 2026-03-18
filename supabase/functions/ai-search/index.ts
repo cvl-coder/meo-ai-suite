@@ -248,7 +248,13 @@ serve(async (req) => {
     // Step 4: Synthesize with Lovable AI
     const scrapedContext = scrapeResults
       .map((r) => {
-        const typeLabel = r.type === "search" ? "🔍 Search" : r.type === "scrape" ? "📄 Scrape" : "📥 File Download";
+        const typeLabel = r.type === "search"
+          ? "🔍 Search"
+          : r.type === "scrape"
+            ? "📄 Scrape"
+            : r.type === "file_download"
+              ? "📥 File Download"
+              : "📝 Text";
         if (r.error) return `### ${typeLabel} — ${r.url}\n⚠️ Error: ${r.error}`;
         return `### ${typeLabel} — ${r.url}\n${r.content}`;
       })

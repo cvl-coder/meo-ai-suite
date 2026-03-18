@@ -453,7 +453,9 @@ export default function AiSearchConfig() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             <IconComp className="h-4 w-4 shrink-0 text-primary" />
-                            <span className="text-sm font-medium truncate">{source.url}</span>
+                            <span className="text-sm font-medium truncate">
+                              {source.type === "text" ? source.url.slice(0, 80) || "Text source" : source.url}
+                            </span>
                             <Badge variant="secondary" className="shrink-0 text-xs">
                               {sourceType.label}
                             </Badge>
@@ -467,7 +469,26 @@ export default function AiSearchConfig() {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-1 md:col-span-2">
+                            <Label className="text-xs text-muted-foreground">{getSourceValueLabel(source.type)}</Label>
+                            {source.type === "text" ? (
+                              <Textarea
+                                value={source.url}
+                                onChange={(e) => updateSource(i, { url: e.target.value })}
+                                placeholder={getSourceValuePlaceholder(source.type)}
+                                rows={5}
+                                className="min-h-28"
+                              />
+                            ) : (
+                              <Input
+                                value={source.url}
+                                onChange={(e) => updateSource(i, { url: e.target.value })}
+                                placeholder={getSourceValuePlaceholder(source.type)}
+                                className="h-9"
+                              />
+                            )}
+                          </div>
                           <div className="space-y-1">
                             <Label className="text-xs text-muted-foreground">Source Type</Label>
                             <Select value={source.type} onValueChange={(v) => updateSource(i, { type: v as SourceType })}>
