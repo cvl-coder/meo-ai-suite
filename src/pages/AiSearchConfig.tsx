@@ -11,12 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye, Brain } from "lucide-react";
+import { Plus, Trash2, Save, Play, Globe, FileText, Users, Loader2, Search, Download, Eye, Brain, Type } from "lucide-react";
 
 const SOURCE_TYPES = [
   { value: "search", label: "Web Search", description: "Search the domain for relevant results using keywords", icon: Search },
   { value: "scrape", label: "Scrape Page", description: "Extract content directly from the URL", icon: Eye },
   { value: "file_download", label: "Download & Parse File", description: "Download a file (Excel, CSV, PDF) from the URL and search through it", icon: Download },
+  { value: "text", label: "Text", description: "Use pasted text directly as a research source", icon: Type },
 ] as const;
 
 type SourceType = typeof SOURCE_TYPES[number]["value"];
@@ -179,6 +180,12 @@ export default function AiSearchConfig() {
     setNewSourceType("search");
     setNewSourceDesc("");
   };
+
+  const getSourceValueLabel = (type: SourceType) =>
+    type === "text" ? "Text Content" : "Source URL";
+
+  const getSourceValuePlaceholder = (type: SourceType) =>
+    type === "text" ? "Paste text content here..." : "https://example.com";
 
   const removeUrl = (index: number) => {
     if (!config) return;
@@ -389,25 +396,41 @@ export default function AiSearchConfig() {
               <CardContent className="space-y-6">
                 {/* Add new source */}
                 <div className="space-y-3 rounded-lg border border-dashed p-4">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="https://example.com"
-                      value={newUrl}
-                      onChange={(e) => setNewUrl(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Select value={newSourceType} onValueChange={(v) => setNewSourceType(v as SourceType)}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SOURCE_TYPES.map((st) => (
-                          <SelectItem key={st.value} value={st.value}>
-                            {st.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex gap-2 max-md:flex-col">
+                    <div className="flex-1 space-y-2">
+                      <Label className="text-xs text-muted-foreground">{getSourceValueLabel(newSourceType)}</Label>
+                      {newSourceType === "text" ? (
+                        <Textarea
+                          placeholder={getSourceValuePlaceholder(newSourceType)}
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          rows={5}
+                          className="min-h-28"
+                        />
+                      ) : (
+                        <Input
+                          placeholder={getSourceValuePlaceholder(newSourceType)}
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          className="flex-1"
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Source Type</Label>
+                      <Select value={newSourceType} onValueChange={(v) => setNewSourceType(v as SourceType)}>
+                        <SelectTrigger className="w-full md:w-[200px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SOURCE_TYPES.map((st) => (
+                            <SelectItem key={st.value} value={st.value}>
+                              {st.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <Input
                     placeholder="Optional: describe how this source should be used..."
@@ -430,7 +453,9 @@ export default function AiSearchConfig() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             <IconComp className="h-4 w-4 shrink-0 text-primary" />
-                            <span className="text-sm font-medium truncate">{source.url}</span>
+                            <span className="text-sm font-medium truncate">
+                              {source.type === "text" ? source.url.slice(0, 80) || "Text source" : source.url}
+                            </span>
                             <Badge variant="secondary" className="shrink-0 text-xs">
                               {sourceType.label}
                             </Badge>
@@ -444,7 +469,26 @@ export default function AiSearchConfig() {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-1 md:col-span-2">
+                            <Label className="text-xs text-muted-foreground">{getSourceValueLabel(source.type)}</Label>
+                            {source.type === "text" ? (
+                              <Textarea
+                                value={source.url}
+                                onChange={(e) => updateSource(i, { url: e.target.value })}
+                                placeholder={getSourceValuePlaceholder(source.type)}
+                                rows={5}
+                                className="min-h-28"
+                              />
+                            ) : (
+                              <Input
+                                value={source.url}
+                                onChange={(e) => updateSource(i, { url: e.target.value })}
+                                placeholder={getSourceValuePlaceholder(source.type)}
+                                className="h-9"
+                              />
+                            )}
+                          </div>
                           <div className="space-y-1">
                             <Label className="text-xs text-muted-foreground">Source Type</Label>
                             <Select value={source.type} onValueChange={(v) => updateSource(i, { type: v as SourceType })}>
