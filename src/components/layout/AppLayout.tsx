@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Brain, Plug, Database, MessageSquare, LogOut } from "lucide-react";
+import { Brain, Plug, Database, MessageSquare, LogOut, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,7 @@ const navItems = [
   { href: "/ai-admin/test-data", label: "Test Data", icon: Database },
   { href: "/integration", label: "Integration", icon: Plug },
   { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/api-test", label: "API Test", icon: FlaskConical },
 ];
 
 export function AppLayout({ children }: { children: ReactNode }) {
