@@ -262,6 +262,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: aiModelName || undefined,
+          stream: true,
           messages: [
             {
               role: "system",
@@ -319,8 +320,40 @@ serve(async (req) => {
       );
     }
 
-    const aiData = await aiResponse.json();
-    const synthesis = aiData.choices?.[0]?.message?.content || "No synthesis generated";
+    // Parse SSE streaming response
+    let synthesis = "";
+    const reader = aiResponse.body?.getReader();
+    if (!reader) {
+      return new Response(
+        JSON.stringify({ success: false, error: "No response body from AI endpoint" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+        const data = trimmed.slice(6);
+        if (data === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) synthesis += delta;
+        } catch {
+          // skip unparseable chunks
+        }
+      }
+    }
+
+    if (!synthesis) synthesis = "No synthesis generated";
 
     const result = {
       success: true,
