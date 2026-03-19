@@ -353,6 +353,8 @@ export default function AiAdmin() {
 
     setRunning(true);
     setResult(null);
+    setStreamedText("");
+    setIsStreaming(true);
 
     try {
       const riskAssessmentData = await invokeMeoAction("getRiskAssessments", {
@@ -372,8 +374,18 @@ export default function AiAdmin() {
         case_id: selectedCaseId,
       };
 
-      const { data, error } = await supabase.functions.invoke("ai-search", {
-        body: {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const session = (await supabase.auth.getSession()).data.session;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/ai-search`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseKey,
+          "Authorization": `Bearer ${session?.access_token || supabaseKey}`,
+        },
+        body: JSON.stringify({
           client_data: clientData,
           search_urls: config.search_urls,
           prompt_template: config.prompt_template,
@@ -381,19 +393,86 @@ export default function AiAdmin() {
           ai_api_key: config.ai_api_key || undefined,
           ai_model: config.ai_model || undefined,
           output_language: config.output_language || "English",
-        },
+        }),
       });
 
-      if (error) {
-        toast({ title: "Search failed", description: error.message, variant: "destructive" });
-      } else if (data && !data.success) {
-        toast({ title: "Search failed", description: data.error || "Unknown error", variant: "destructive" });
-      } else {
-        setResult(data);
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("text/event-stream")) {
+        // Streaming response
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullText = "";
+        let meta: any = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+
+            // Handle custom meta event
+            if (trimmed.startsWith("event: meta")) continue;
+            if (trimmed.startsWith("data: ") && meta === "pending") {
+              try {
+                meta = JSON.parse(trimmed.slice(6));
+              } catch { /* skip */ }
+              continue;
+            }
+
+            if (trimmed === "event: meta") {
+              meta = "pending";
+              continue;
+            }
+
+            if (!trimmed.startsWith("data: ")) continue;
+            const data = trimmed.slice(6);
+            if (data === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullText += delta;
+                setStreamedText(fullText);
+              }
+            } catch { /* skip */ }
+          }
+        }
+
+        // Handle meta event detection properly
+        // Re-parse buffer for any remaining meta
+        if (buffer.trim()) {
+          const remaining = buffer.trim();
+          if (remaining.startsWith("data: ") && remaining.length > 6) {
+            try {
+              const parsed = JSON.parse(remaining.slice(6));
+              if (parsed.sources) meta = parsed;
+            } catch { /* skip */ }
+          }
+        }
+
+        setIsStreaming(false);
+
+        const finalResult = {
+          success: true,
+          synthesis: fullText || "No synthesis generated",
+          sources: meta?.sources || [],
+          prompt_used: meta?.prompt_used || "",
+        };
+        setResult(finalResult);
+
         await supabase.from("ai_search_results").insert({
           config_id: config.id,
           client_data: clientData as any,
-          results: data as any,
+          results: finalResult as any,
           status: "completed",
         });
 
@@ -402,8 +481,16 @@ export default function AiAdmin() {
           title: "Search completed",
           description: `Used ${riskAssessmentCount} risk assessment${riskAssessmentCount === 1 ? "" : "s"} from the selected case.`,
         });
+      } else {
+        // JSON error response
+        const data = await response.json();
+        if (!data.success) {
+          toast({ title: "Search failed", description: data.error || "Unknown error", variant: "destructive" });
+        }
+        setIsStreaming(false);
       }
     } catch (err: any) {
+      setIsStreaming(false);
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
 
