@@ -184,6 +184,7 @@ export default function AiSearchConfig() {
         ai_endpoint_url: config.ai_endpoint_url,
         ai_api_key: config.ai_api_key,
         ai_model: config.ai_model,
+        output_language: config.output_language,
       } as any)
       .eq("id", config.id);
 
