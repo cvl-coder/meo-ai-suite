@@ -60,6 +60,7 @@ export default function AiAdmin() {
   const [configMap, setConfigMap] = useState<Record<string, SearchConfig>>({});
   const [allTestData, setAllTestData] = useState<TestDataEntry[]>([]);
   const [selectedTestData, setSelectedTestData] = useState<Record<string, string>>({});
+  const [inlineRiskText, setInlineRiskText] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -140,7 +141,6 @@ export default function AiAdmin() {
       return;
     }
 
-    // Load config
     if (!configMap[fn.id]) {
       const { data } = await supabase
         .from("ai_search_configs")
@@ -171,15 +171,22 @@ export default function AiAdmin() {
     return entry?.field_values || {};
   };
 
+  const getRunInputData = (fnId: string): Record<string, string> => ({
+    ...getSelectedInputData(fnId),
+    risk_text: inlineRiskText[fnId]?.trim() || "",
+  });
+
   const runFunction = async (fn: AiFunction) => {
     const config = configMap[fn.id];
     if (!config) return;
 
-    const clientData = getSelectedInputData(fn.id);
-    if (!selectedTestData[fn.id]) {
-      toast({ title: "Select test data first", variant: "destructive" });
+    const riskText = inlineRiskText[fn.id]?.trim();
+    if (!riskText) {
+      toast({ title: "Enter risk text first", variant: "destructive" });
       return;
     }
+
+    const clientData = getRunInputData(fn.id);
 
     setRunning(true);
     setResult(null);
@@ -224,7 +231,6 @@ export default function AiAdmin() {
   return (
     <AppLayout>
       <div className="space-y-8">
-        {/* Hero */}
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
             AI Functions
@@ -238,7 +244,6 @@ export default function AiAdmin() {
           </Button>
         </div>
 
-        {/* Function cards */}
         {loading ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
@@ -326,7 +331,6 @@ export default function AiAdmin() {
                       </div>
                     </div>
 
-                    {/* Expanded inline run panel */}
                     {isExpanded && fn.enabled && (
                       <div className="border-t pt-4 space-y-4">
                         {!config ? (
@@ -336,8 +340,29 @@ export default function AiAdmin() {
                           </div>
                         ) : (
                           <>
+                            <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                              <div className="space-y-1">
+                                <Label className="text-sm font-medium">Risk text</Label>
+                                <p className="text-xs text-muted-foreground">
+                                  This is entered per run from the AI function and is available in the prompt as <span className="font-mono">{{risk_text}}</span>.
+                                </p>
+                              </div>
+                              <Textarea
+                                value={inlineRiskText[fn.id] || ""}
+                                onChange={(e) =>
+                                  setInlineRiskText((prev) => ({ ...prev, [fn.id]: e.target.value }))
+                                }
+                                placeholder="Paste the risk assessment text for this run..."
+                                rows={8}
+                                className="min-h-40"
+                              />
+                            </div>
+
                             <div className="space-y-3">
-                              <Label className="text-sm font-medium">Select Test Data</Label>
+                              <Label className="text-sm font-medium">Optional saved input data</Label>
+                              <p className="text-xs text-muted-foreground">
+                                Use saved datasets only for reusable structured fields. Risk text is always entered here in the function runner.
+                              </p>
                               {allTestData.length === 0 ? (
                                 <div className="flex items-center gap-3 py-4">
                                   <p className="text-sm text-muted-foreground">No test data available.</p>
@@ -355,7 +380,7 @@ export default function AiAdmin() {
                                     }
                                   >
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Choose a test data set..." />
+                                      <SelectValue placeholder="Choose a saved data set (optional)..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {allTestData.map((entry) => (
@@ -366,7 +391,6 @@ export default function AiAdmin() {
                                     </SelectContent>
                                   </Select>
 
-                                  {/* Preview selected data */}
                                   {selectedTestData[fn.id] && (
                                     <div className="flex flex-wrap gap-2">
                                       {Object.entries(getSelectedInputData(fn.id)).map(([key, val]) => {
@@ -386,7 +410,7 @@ export default function AiAdmin() {
 
                             <Button
                               onClick={() => runFunction(fn)}
-                              disabled={running || !selectedTestData[fn.id]}
+                              disabled={running || !inlineRiskText[fn.id]?.trim()}
                               className="gap-2"
                             >
                               {running ? (
@@ -399,7 +423,6 @@ export default function AiAdmin() {
                           </>
                         )}
 
-                        {/* Results */}
                         {result && (
                           <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
                             <h4 className="text-sm font-semibold">Results</h4>
@@ -430,7 +453,6 @@ export default function AiAdmin() {
               );
             })}
 
-            {/* Add new function card */}
             <Card
               className="flex cursor-pointer items-center justify-center border-dashed transition-colors hover:border-primary/50 hover:bg-muted/50 min-h-[200px]"
               onClick={() => setShowAddDialog(true)}
@@ -444,7 +466,6 @@ export default function AiAdmin() {
         )}
       </div>
 
-      {/* Add Function Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
