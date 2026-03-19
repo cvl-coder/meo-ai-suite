@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken, getMeoUserId } from "@/lib/meoToken";
 import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database, Plus, RefreshCw } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 const iconMap: Record<string, React.ElementType> = {
   "globe-search": Search,

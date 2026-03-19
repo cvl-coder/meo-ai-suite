@@ -233,7 +233,7 @@ serve(async (req) => {
 
     await Promise.all(processPromises);
 
-    // Step 4: Synthesize with Lovable AI
+    // Step 4: Synthesize with AI — stream response through to client
     const scrapedContext = scrapeResults
       .map((r) => {
         const typeLabel = r.type === "search"
@@ -249,7 +249,6 @@ serve(async (req) => {
       .join("\n\n---\n\n");
 
     console.log("Sending to AI for synthesis, context length:", scrapedContext.length);
-
     console.log("AI endpoint:", aiEndpoint, "Model:", aiModelName, "Has API key:", !!aiApiKey);
 
     let aiResponse: Response;
@@ -320,57 +319,48 @@ serve(async (req) => {
       );
     }
 
-    // Parse SSE streaming response
-    let synthesis = "";
-    const reader = aiResponse.body?.getReader();
-    if (!reader) {
+    if (!aiResponse.body) {
       return new Response(
         JSON.stringify({ success: false, error: "No response body from AI endpoint" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith("data: ")) continue;
-        const data = trimmed.slice(6);
-        if (data === "[DONE]") continue;
-        try {
-          const parsed = JSON.parse(data);
-          const delta = parsed.choices?.[0]?.delta?.content;
-          if (delta) synthesis += delta;
-        } catch {
-          // skip unparseable chunks
+    // Build source metadata to send as a final event
+    const sourceMeta = scrapeResults.map((r) => ({
+      url: r.url,
+      type: r.type,
+      hasContent: !!r.content && !r.error,
+      error: r.error || null,
+    }));
+
+    // Create a TransformStream that passes through AI SSE chunks
+    // and appends a custom meta event at the end
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const reader = aiResponse.body.getReader();
+
+    (async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          await writer.write(value);
         }
+        // Send source metadata as a custom SSE event
+        const metaEvent = `event: meta\ndata: ${JSON.stringify({ sources: sourceMeta, prompt_used: prompt })}\n\n`;
+        await writer.write(new TextEncoder().encode(metaEvent));
+      } catch (err) {
+        console.error("Stream relay error:", err);
+      } finally {
+        await writer.close();
       }
-    }
+    })();
 
-    if (!synthesis) synthesis = "No synthesis generated";
+    console.log("Streaming AI response to client");
 
-    const result = {
-      success: true,
-      synthesis,
-      sources: scrapeResults.map((r) => ({
-        url: r.url,
-        type: r.type,
-        hasContent: !!r.content && !r.error,
-        error: r.error || null,
-      })),
-      prompt_used: prompt,
-    };
-
-    console.log("Search completed successfully");
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(readable, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
     });
   } catch (error) {
     console.error("ai-search error:", error);
