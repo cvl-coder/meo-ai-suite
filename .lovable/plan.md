@@ -1,24 +1,24 @@
 
 
-## Plan: Remove Lovable AI fallback — require custom AI endpoint
+## Plan: Stream AI results in real-time to the UI
 
-**Goal**: The system should only work with a user-configured custom AI endpoint. Remove the Lovable AI gateway fallback entirely, and make the endpoint/API key fields required.
+**Goal**: Instead of waiting for the entire AI response to complete before showing results, stream the synthesis text token-by-token into the results panel as it arrives.
 
 ### Changes
 
 **1. Backend: `supabase/functions/ai-search/index.ts`**
-- Remove the `else` branch (lines 61-72) that falls back to Lovable AI gateway
-- Instead, if `ai_endpoint_url` is missing/empty, return an error: "AI endpoint not configured. Please set a custom AI endpoint in the function settings."
-- Remove the `useCustomAi` variable — custom is now the only path
+- Instead of collecting the full streamed response and returning JSON at the end, pass the SSE stream directly through to the client
+- Return the AI provider's SSE stream with `text/event-stream` content type
+- Send source metadata as a final custom SSE event after the AI stream completes
 
-**2. Frontend: `src/pages/AiSearchConfig.tsx`**
-- Update the AI Model tab title from "Custom AI Model" to "AI Model"
-- Remove the CardDescription text referencing Lovable AI gateway (line 377)
-- Replace with: "Configure the AI model endpoint for this function. An endpoint URL and API key are required."
-- Add a visual indicator (e.g. destructive badge or warning) when endpoint URL is empty, so users know it must be filled in
-- Remove the "Custom AI" badge (lines 407-411) — replace with a simple "Connected" badge or remove entirely
+**2. Frontend: `src/pages/AiAdmin.tsx`**
+- Replace `supabase.functions.invoke()` with a direct `fetch()` call to the edge function (since `invoke` doesn't support streaming)
+- Read the response as a stream using `getReader()` and parse SSE chunks
+- Update a `streamedSynthesis` state incrementally as tokens arrive, rendering them in the results panel in real-time
+- Render the streamed text with `ReactMarkdown` (already used in ChatPlayground)
+- After stream completes, save the full result to `ai_search_results` as before
 
-### No other files need changes
-
-The `AiAdmin.tsx` runner already passes through whatever endpoint config is saved — no changes needed there.
+### Result
+- Users see AI output appearing word-by-word as it generates
+- Same approach already used in ChatPlayground, applied here to AI search
 
