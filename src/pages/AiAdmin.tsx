@@ -325,7 +325,7 @@ export default function AiAdmin() {
                             ) : (
                               <Play className="h-4 w-4" />
                             )}
-                            {isExpanded ? "Close" : "Run"}
+                            {isExpanded ? "Close" : "Test"}
                           </Button>
                         )}
                       </div>
