@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_search_configs ADD COLUMN output_language TEXT NOT NULL DEFAULT 'English';
