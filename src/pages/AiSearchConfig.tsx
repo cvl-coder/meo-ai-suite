@@ -536,7 +536,7 @@ export default function AiSearchConfig() {
               <CardHeader>
                 <CardTitle>Prompt Template</CardTitle>
                 <CardDescription>
-                  Configure the AI prompt. Use {"{{field_key}}"} to reference client fields.
+                  Configure the static prompt. Use {"{{risk_text}}"} for the per-run risk text entered from the AI Functions page, plus {"{{field_key}}"} for optional saved fields.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -547,10 +547,13 @@ export default function AiSearchConfig() {
                   }
                   rows={8}
                   className="font-mono text-sm"
-                  placeholder="Find information about {{name}} from {{company}}..."
+                  placeholder="Analyze this risk assessment against the standard guidance: {{risk_text}}"
                 />
                 <div className="flex flex-wrap gap-2">
                   <span className="text-xs text-muted-foreground">Available variables:</span>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {"{{risk_text}}"}
+                  </Badge>
                   {config.client_fields.map((f) => (
                     <Badge key={f.key} variant="outline" className="font-mono text-xs">
                       {`{{${f.key}}}`}
@@ -569,7 +572,7 @@ export default function AiSearchConfig() {
                   <div>
                     <CardTitle>Client Information Fields</CardTitle>
                     <CardDescription>
-                      Define what information is collected about the client before searching.
+                      Define reusable structured inputs. Risk text is entered when running the AI function, not here.
                     </CardDescription>
                   </div>
                   <Button onClick={addField} variant="outline" size="sm" className="gap-1.5">
@@ -631,12 +634,15 @@ export default function AiSearchConfig() {
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Test Search</CardTitle>
+                  <CardTitle>Static Config Test</CardTitle>
                   <CardDescription>
-                    Enter sample client data and run a test search.
+                    This only checks the saved config and reusable fields. Enter live risk text from the AI Functions page.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    Per-run risk text now belongs in the AI function runner, not in config.
+                  </div>
                   {config.client_fields.map((field) => (
                     <div key={field.key} className="space-y-1">
                       <Label>

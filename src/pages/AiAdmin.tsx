@@ -344,7 +344,7 @@ export default function AiAdmin() {
                               <div className="space-y-1">
                                 <Label className="text-sm font-medium">Risk text</Label>
                                 <p className="text-xs text-muted-foreground">
-                                  This is entered per run from the AI function and is available in the prompt as <span className="font-mono">{{risk_text}}</span>.
+                                  This is entered per run from the AI function and is available in the prompt as <span className="font-mono">{"{{risk_text}}"}</span>.
                                 </p>
                               </div>
                               <Textarea
