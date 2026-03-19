@@ -49,6 +49,7 @@ type SearchConfig = {
   ai_endpoint_url?: string;
   ai_api_key?: string;
   ai_model?: string;
+  output_language?: string;
 };
 
 type TestDataEntry = {
