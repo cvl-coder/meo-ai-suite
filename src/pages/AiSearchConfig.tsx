@@ -271,6 +271,7 @@ export default function AiSearchConfig() {
           ai_endpoint_url: config.ai_endpoint_url || undefined,
           ai_api_key: config.ai_api_key || undefined,
           ai_model: config.ai_model || undefined,
+          output_language: config.output_language || "English",
         },
       });
 
