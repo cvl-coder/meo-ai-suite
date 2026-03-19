@@ -372,23 +372,26 @@ export default function AiSearchConfig() {
           <TabsContent value="ai-model">
             <Card>
               <CardHeader>
-                <CardTitle>Custom AI Model</CardTitle>
+                <CardTitle>AI Model</CardTitle>
                 <CardDescription>
-                  Connect your own AI model endpoint. Leave empty to use the default Lovable AI gateway.
+                  Configure the AI model endpoint for this function. An endpoint URL and API key are required.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Endpoint URL</Label>
+                  <Label>Endpoint URL <span className="text-destructive">*</span></Label>
                   <Input
                     placeholder="http://your-server.com/v1"
                     value={config.ai_endpoint_url}
                     onChange={(e) => setConfig({ ...config, ai_endpoint_url: e.target.value })}
                   />
                   <p className="text-xs text-muted-foreground">Base URL only (e.g. http://core.meo.io/v1). /chat/completions is appended automatically.</p>
+                  {!config.ai_endpoint_url && (
+                    <p className="text-xs text-destructive">⚠ Endpoint URL is required for AI functions to work.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>API Key</Label>
+                  <Label>API Key <span className="text-destructive">*</span></Label>
                   <Input
                     type="password"
                     placeholder="sk-..."
@@ -404,9 +407,13 @@ export default function AiSearchConfig() {
                     onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
                   />
                 </div>
-                {config.ai_endpoint_url && (
-                  <Badge variant="outline" className="text-xs">
-                    Custom AI: {config.ai_endpoint_url}
+                {config.ai_endpoint_url ? (
+                  <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                    ✓ Connected: {config.ai_endpoint_url}
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-xs">
+                    Not configured
                   </Badge>
                 )}
               </CardContent>
