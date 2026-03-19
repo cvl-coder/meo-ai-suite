@@ -35,6 +35,10 @@ type ClientField = {
   required: boolean;
 };
 
+const OUTPUT_LANGUAGES = [
+  "English", "Danish", "Norwegian", "Swedish", "German", "French", "Spanish", "Portuguese", "Italian", "Dutch", "Finnish", "Polish", "Czech", "Romanian", "Hungarian", "Greek", "Turkish", "Arabic", "Chinese", "Japanese", "Korean",
+] as const;
+
 type SearchConfig = {
   id: string;
   function_id: string;
@@ -44,6 +48,7 @@ type SearchConfig = {
   ai_endpoint_url: string;
   ai_api_key: string;
   ai_model: string;
+  output_language: string;
 };
 
 type SearchResult = {
