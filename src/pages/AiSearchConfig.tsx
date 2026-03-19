@@ -54,6 +54,27 @@ type SearchResult = {
   created_at: string;
 };
 
+const STRUCTURED_RISK_SUMMARY_PROMPT = `You are a risk analyst.
+
+Review the risk assessment JSON below and produce a concise, well-structured summary for a human reader.
+
+Requirements:
+- Write in clear business language
+- Organize the output with these markdown sections:
+  ## Overall Risk
+  ## Key Findings
+  ## Main Gaps or Concerns
+  ## Recommended Actions
+  ## Data Quality Notes
+- Target approximately 150-250 words
+- Focus on the most important risks, signals, weaknesses, and next steps
+- Do not describe the JSON structure
+- Do not invent facts
+- If important information is missing, say so briefly
+
+Risk assessment JSON:
+{{risk_text}}`;
+
 export default function AiSearchConfig() {
   const { functionId } = useParams<{ functionId: string }>();
   const [config, setConfig] = useState<SearchConfig | null>(null);
