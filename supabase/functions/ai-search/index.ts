@@ -33,7 +33,7 @@ serve(async (req) => {
   }
 
   try {
-    const { client_data, search_urls, prompt_template, ai_endpoint_url, ai_api_key, ai_model } = await req.json();
+    const { client_data, search_urls, prompt_template, ai_endpoint_url, ai_api_key, ai_model, output_language } = await req.json();
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     if (!FIRECRAWL_API_KEY) {
@@ -278,7 +278,7 @@ serve(async (req) => {
             {
               role: "system",
               content:
-                "You are an AI research assistant for MEO workspace. Synthesize the scraped web content to answer the user's research prompt. Provide structured, actionable findings with source citations. Format your response as clean markdown with clear section headings, concise bullets or short paragraphs where helpful, and a readable overview instead of one dense block of text.",
+                `You are an AI research assistant for MEO workspace. Synthesize the scraped web content to answer the user's research prompt. Provide structured, actionable findings with source citations. Format your response as clean markdown with clear section headings, concise bullets or short paragraphs where helpful, and a readable overview instead of one dense block of text.${output_language && output_language !== "English" ? ` IMPORTANT: Write your entire response in ${output_language}.` : ""}`,
             },
             {
               role: "user",

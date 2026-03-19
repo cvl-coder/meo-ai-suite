@@ -35,6 +35,10 @@ type ClientField = {
   required: boolean;
 };
 
+const OUTPUT_LANGUAGES = [
+  "English", "Danish", "Norwegian", "Swedish", "German", "French", "Spanish", "Portuguese", "Italian", "Dutch", "Finnish", "Polish", "Czech", "Romanian", "Hungarian", "Greek", "Turkish", "Arabic", "Chinese", "Japanese", "Korean",
+] as const;
+
 type SearchConfig = {
   id: string;
   function_id: string;
@@ -44,6 +48,7 @@ type SearchConfig = {
   ai_endpoint_url: string;
   ai_api_key: string;
   ai_model: string;
+  output_language: string;
 };
 
 type SearchResult = {
@@ -135,6 +140,7 @@ export default function AiSearchConfig() {
         ai_endpoint_url: (data as any).ai_endpoint_url || "",
         ai_api_key: (data as any).ai_api_key || "",
         ai_model: (data as any).ai_model || "",
+        output_language: (data as any).output_language || "English",
       });
     } else {
       // Auto-create a config for this function
@@ -178,6 +184,7 @@ export default function AiSearchConfig() {
         ai_endpoint_url: config.ai_endpoint_url,
         ai_api_key: config.ai_api_key,
         ai_model: config.ai_model,
+        output_language: config.output_language,
       } as any)
       .eq("id", config.id);
 
@@ -264,6 +271,7 @@ export default function AiSearchConfig() {
           ai_endpoint_url: config.ai_endpoint_url || undefined,
           ai_api_key: config.ai_api_key || undefined,
           ai_model: config.ai_model || undefined,
+          output_language: config.output_language || "English",
         },
       });
 
@@ -561,6 +569,25 @@ export default function AiSearchConfig() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Output Language</Label>
+                  <Select
+                    value={config.output_language || "English"}
+                    onValueChange={(v) => setConfig({ ...config, output_language: v })}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {OUTPUT_LANGUAGES.map((lang) => (
+                        <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    The AI will write its output in this language.
+                  </p>
+                </div>
                 <Textarea
                   value={config.prompt_template}
                   onChange={(e) =>

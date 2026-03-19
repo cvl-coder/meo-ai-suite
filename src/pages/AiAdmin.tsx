@@ -49,6 +49,7 @@ type SearchConfig = {
   ai_endpoint_url?: string;
   ai_api_key?: string;
   ai_model?: string;
+  output_language?: string;
 };
 
 type TestDataEntry = {
@@ -376,6 +377,7 @@ export default function AiAdmin() {
           ai_endpoint_url: config.ai_endpoint_url || undefined,
           ai_api_key: config.ai_api_key || undefined,
           ai_model: config.ai_model || undefined,
+          output_language: config.output_language || "English",
         },
       });
 

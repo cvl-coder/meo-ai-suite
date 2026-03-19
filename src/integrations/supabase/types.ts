@@ -55,6 +55,7 @@ export type Database = {
           client_fields: Json
           function_id: string
           id: string
+          output_language: string
           prompt_template: string
           search_urls: Json
           updated_at: string
@@ -66,6 +67,7 @@ export type Database = {
           client_fields?: Json
           function_id: string
           id?: string
+          output_language?: string
           prompt_template?: string
           search_urls?: Json
           updated_at?: string
@@ -77,6 +79,7 @@ export type Database = {
           client_fields?: Json
           function_id?: string
           id?: string
+          output_language?: string
           prompt_template?: string
           search_urls?: Json
           updated_at?: string
