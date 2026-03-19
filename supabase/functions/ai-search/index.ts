@@ -262,6 +262,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: aiModelName || undefined,
+          stream: true,
           messages: [
             {
               role: "system",
