@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.meo-login]
 verify_jwt = false
+
+[functions.meo-api-test]
+verify_jwt = false
