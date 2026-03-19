@@ -43,33 +43,21 @@ serve(async (req) => {
       );
     }
 
-    // Determine AI endpoint: use custom if provided, else Lovable AI gateway
-    const useCustomAi = !!ai_endpoint_url;
-    let aiEndpoint: string;
-    let aiApiKey: string;
-    let aiModelName: string;
-
-    if (useCustomAi) {
-      let baseUrl = ai_endpoint_url.replace(/\/+$/, "");
-      // Append /chat/completions if not already present (OpenAI-compatible format)
-      if (!baseUrl.endsWith("/chat/completions")) {
-        baseUrl += "/chat/completions";
-      }
-      aiEndpoint = baseUrl;
-      aiApiKey = ai_api_key || "";
-      aiModelName = ai_model || "";
-    } else {
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) {
-        return new Response(
-          JSON.stringify({ success: false, error: "AI gateway not configured" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      aiEndpoint = "https://ai.gateway.lovable.dev/v1/chat/completions";
-      aiApiKey = LOVABLE_API_KEY;
-      aiModelName = "google/gemini-2.5-flash";
+    // AI endpoint: require custom endpoint configuration
+    if (!ai_endpoint_url) {
+      return new Response(
+        JSON.stringify({ success: false, error: "AI endpoint not configured. Please set a custom AI endpoint in the function settings." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    let aiEndpoint = ai_endpoint_url.replace(/\/+$/, "");
+    // Append /chat/completions if not already present (OpenAI-compatible format)
+    if (!aiEndpoint.endsWith("/chat/completions")) {
+      aiEndpoint += "/chat/completions";
+    }
+    const aiApiKey: string = ai_api_key || "";
+    const aiModelName: string = ai_model || "";
 
     // Step 1: Build the prompt by replacing {{variables}}
     let prompt = prompt_template || "";
