@@ -140,6 +140,7 @@ export default function AiSearchConfig() {
         ai_endpoint_url: (data as any).ai_endpoint_url || "",
         ai_api_key: (data as any).ai_api_key || "",
         ai_model: (data as any).ai_model || "",
+        output_language: (data as any).output_language || "English",
       });
     } else {
       // Auto-create a config for this function
