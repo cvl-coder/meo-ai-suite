@@ -54,6 +54,27 @@ type SearchResult = {
   created_at: string;
 };
 
+const STRUCTURED_RISK_SUMMARY_PROMPT = `You are a risk analyst.
+
+Review the risk assessment JSON below and produce a concise, well-structured summary for a human reader.
+
+Requirements:
+- Write in clear business language
+- Organize the output with these markdown sections:
+  ## Overall Risk
+  ## Key Findings
+  ## Main Gaps or Concerns
+  ## Recommended Actions
+  ## Data Quality Notes
+- Target approximately 150-250 words
+- Focus on the most important risks, signals, weaknesses, and next steps
+- Do not describe the JSON structure
+- Do not invent facts
+- If important information is missing, say so briefly
+
+Risk assessment JSON:
+{{risk_text}}`;
+
 export default function AiSearchConfig() {
   const { functionId } = useParams<{ functionId: string }>();
   const [config, setConfig] = useState<SearchConfig | null>(null);
@@ -536,7 +557,7 @@ export default function AiSearchConfig() {
               <CardHeader>
                 <CardTitle>Prompt Template</CardTitle>
                 <CardDescription>
-                  Configure the static prompt. Use {"{{risk_text}}"} for the per-run risk text entered from the AI Functions page, plus {"{{field_key}}"} for optional saved fields.
+                  Configure the static prompt. For risk summaries, use sectioned markdown output and a word-range target. Use {"{{risk_text}}"} for the per-run risk text entered from the AI Functions page, plus {"{{field_key}}"} for optional saved fields.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -547,8 +568,11 @@ export default function AiSearchConfig() {
                   }
                   rows={8}
                   className="font-mono text-sm"
-                  placeholder="Analyze this risk assessment against the standard guidance: {{risk_text}}"
+                  placeholder={STRUCTURED_RISK_SUMMARY_PROMPT}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Recommended for risk summaries: use sections like Overall Risk, Key Findings, Main Gaps or Concerns, Recommended Actions, and Data Quality Notes, with a target of about 150-250 words instead of a fixed line count.
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <span className="text-xs text-muted-foreground">Available variables:</span>
                   <Badge variant="outline" className="font-mono text-xs">

@@ -278,7 +278,7 @@ serve(async (req) => {
             {
               role: "system",
               content:
-                "You are an AI research assistant for MEO workspace. Synthesize the scraped web content to answer the user's research prompt. Provide structured, actionable findings with source citations. Format your response as markdown with clear sections.",
+                "You are an AI research assistant for MEO workspace. Synthesize the scraped web content to answer the user's research prompt. Provide structured, actionable findings with source citations. Format your response as clean markdown with clear section headings, concise bullets or short paragraphs where helpful, and a readable overview instead of one dense block of text.",
             },
             {
               role: "user",
