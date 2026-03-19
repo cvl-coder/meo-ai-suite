@@ -54,6 +54,10 @@ export function getMeoToken() {
   return readStoredToken()?.token ?? null;
 }
 
+export function getMeoUserId() {
+  return localStorage.getItem(MEO_USER_STORAGE_KEY);
+}
+
 export function isMeoTokenValid() {
   const storedToken = readStoredToken();
   if (!storedToken?.token) return false;

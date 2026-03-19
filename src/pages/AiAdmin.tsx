@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database, Plus } from "lucide-react";
+import { getMeoToken, getMeoUserId } from "@/lib/meoToken";
+import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database, Plus, RefreshCw } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
   "globe-search": Search,
@@ -45,12 +46,26 @@ type SearchConfig = {
   search_urls: string[];
   prompt_template: string;
   client_fields: ClientField[];
+  ai_endpoint_url?: string;
+  ai_api_key?: string;
+  ai_model?: string;
 };
 
 type TestDataEntry = {
   id: string;
   label: string;
   field_values: Record<string, string>;
+};
+
+type WorkspaceOption = {
+  id: string;
+  name: string;
+};
+
+type CaseOption = {
+  id: string;
+  label: string;
+  status: string;
 };
 
 export default function AiAdmin() {
@@ -60,12 +75,19 @@ export default function AiAdmin() {
   const [configMap, setConfigMap] = useState<Record<string, SearchConfig>>({});
   const [allTestData, setAllTestData] = useState<TestDataEntry[]>([]);
   const [selectedTestData, setSelectedTestData] = useState<Record<string, string>>({});
-  const [inlineRiskText, setInlineRiskText] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newFn, setNewFn] = useState({ name: "", description: "", type: "external_search" as string, icon: "search" });
   const [creating, setCreating] = useState(false);
+  const [meoToken, setMeoToken] = useState("");
+  const [meoUserId, setMeoUserId] = useState("");
+  const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>([]);
+  const [caseOptions, setCaseOptions] = useState<CaseOption[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedCaseId, setSelectedCaseId] = useState("");
+  const [loadingWorkspaceParams, setLoadingWorkspaceParams] = useState(false);
+  const [loadingCases, setLoadingCases] = useState(false);
   const navigate = useNavigate();
 
   const createFunction = async () => {
@@ -110,12 +132,152 @@ export default function AiAdmin() {
     fetchAllTestData();
   }, []);
 
+  useEffect(() => {
+    const storedToken = getMeoToken() || "";
+    const storedUserId = getMeoUserId() || "";
+    const storedCustomerId = localStorage.getItem("selectedCustomerId") || "";
+
+    setMeoToken(storedToken);
+    setMeoUserId(storedUserId);
+    setSelectedCustomerId(storedCustomerId);
+
+    if (storedCustomerId) {
+      setSelectedCaseId(localStorage.getItem(`meo_case_id:${storedCustomerId}`) || "");
+    }
+  }, []);
+
   const fetchAllTestData = async () => {
     const { data } = await supabase
       .from("ai_test_data")
       .select("*")
       .order("created_at", { ascending: false });
     setAllTestData((data as any) || []);
+  };
+
+  const invokeMeoAction = useCallback(async (action: string, payload: Record<string, any>) => {
+    const { data, error } = await supabase.functions.invoke("meo-api-test", {
+      body: { action, payload },
+    });
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }, []);
+
+  const loadCasesForWorkspace = useCallback(async (customerId: string, preferredCaseId?: string) => {
+    if (!customerId || !meoToken) return;
+
+    setLoadingCases(true);
+
+    try {
+      const data = await invokeMeoAction("getCases", {
+        customerId,
+        page: 1,
+        personToken: meoToken,
+        limit: 100,
+        statuses: ["Open", "Approved", "Rejected"],
+      });
+
+      const nextCases: CaseOption[] = Array.isArray(data?.data)
+        ? data.data.map((entry: any) => ({
+            id: String(entry.id),
+            label: [entry.title, entry.externalId].filter(Boolean).join(" · ") || String(entry.id),
+            status: entry.status || "Unknown",
+          }))
+        : [];
+
+      setCaseOptions(nextCases);
+
+      const savedCaseId = localStorage.getItem(`meo_case_id:${customerId}`) || "";
+      const nextCase = nextCases.find((entry) => entry.id === preferredCaseId)
+        || nextCases.find((entry) => entry.id === savedCaseId)
+        || nextCases[0];
+
+      const nextCaseId = nextCase?.id || "";
+      setSelectedCaseId(nextCaseId);
+
+      if (nextCaseId) {
+        localStorage.setItem(`meo_case_id:${customerId}`, nextCaseId);
+      }
+    } catch (error) {
+      setCaseOptions([]);
+      setSelectedCaseId("");
+      toast({
+        title: "Unable to load cases",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingCases(false);
+    }
+  }, [invokeMeoAction, meoToken]);
+
+  const loadWorkspaceParams = useCallback(async (preferredCustomerId?: string) => {
+    if (!meoToken || !meoUserId) return;
+
+    setLoadingWorkspaceParams(true);
+
+    try {
+      const data = await invokeMeoAction("getAccount", {
+        personToken: meoToken,
+        userId: meoUserId,
+      });
+
+      const adminMemberships = Array.isArray(data?.result?.isAdminAt) ? data.result.isAdminAt : [];
+      if (adminMemberships.length === 0) {
+        throw new Error("No customer workspaces were found on this account.");
+      }
+
+      const nextWorkspaces: WorkspaceOption[] = adminMemberships
+        .filter((entry: any) => entry?.customerId)
+        .map((entry: any) => ({
+          id: String(entry.customerId),
+          name: entry.name || String(entry.customerId),
+        }));
+
+      setWorkspaceOptions(nextWorkspaces);
+
+      const savedCustomerId = localStorage.getItem("selectedCustomerId") || "";
+      const nextWorkspace = nextWorkspaces.find((entry) => entry.id === preferredCustomerId)
+        || nextWorkspaces.find((entry) => entry.id === savedCustomerId)
+        || nextWorkspaces[0];
+
+      if (!nextWorkspace) {
+        throw new Error("No workspaces were returned.");
+      }
+
+      setSelectedCustomerId(nextWorkspace.id);
+      localStorage.setItem("selectedCustomerId", nextWorkspace.id);
+      await loadCasesForWorkspace(nextWorkspace.id, selectedCaseId || undefined);
+    } catch (error) {
+      toast({
+        title: "Unable to load workspaces",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingWorkspaceParams(false);
+    }
+  }, [invokeMeoAction, loadCasesForWorkspace, meoToken, meoUserId, selectedCaseId]);
+
+  useEffect(() => {
+    if (expandedId && meoToken && meoUserId && workspaceOptions.length === 0) {
+      void loadWorkspaceParams(selectedCustomerId || undefined);
+    }
+  }, [expandedId, loadWorkspaceParams, meoToken, meoUserId, selectedCustomerId, workspaceOptions.length]);
+
+  const handleWorkspaceChange = async (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    localStorage.setItem("selectedCustomerId", customerId);
+    await loadCasesForWorkspace(customerId);
+  };
+
+  const handleCaseChange = (caseId: string) => {
+    setSelectedCaseId(caseId);
+
+    if (selectedCustomerId) {
+      localStorage.setItem(`meo_case_id:${selectedCustomerId}`, caseId);
+    }
   };
 
   const toggleFunction = async (id: string, enabled: boolean) => {
@@ -171,35 +333,49 @@ export default function AiAdmin() {
     return entry?.field_values || {};
   };
 
-  const getRunInputData = (fnId: string): Record<string, string> => ({
-    ...getSelectedInputData(fnId),
-    risk_text: inlineRiskText[fnId]?.trim() || "",
-  });
-
   const runFunction = async (fn: AiFunction) => {
     const config = configMap[fn.id];
     if (!config) return;
 
-    const riskText = inlineRiskText[fn.id]?.trim();
-    if (!riskText) {
-      toast({ title: "Enter risk text first", variant: "destructive" });
+    if (!meoToken) {
+      toast({ title: "Sign in required", description: "Sign in with your MEO account first.", variant: "destructive" });
       return;
     }
 
-    const clientData = getRunInputData(fn.id);
+    if (!selectedCustomerId || !selectedCaseId) {
+      toast({ title: "Select a case first", description: "Choose a workspace and case before running the function.", variant: "destructive" });
+      return;
+    }
 
     setRunning(true);
     setResult(null);
 
     try {
+      const riskAssessmentData = await invokeMeoAction("getRiskAssessments", {
+        caseId: selectedCaseId,
+        customerId: selectedCustomerId,
+        personToken: meoToken,
+        page: 1,
+        limit: 100,
+        orderColumn: "createdAt",
+        orderDirection: "desc",
+      });
+
+      const clientData = {
+        ...getSelectedInputData(fn.id),
+        risk_text: JSON.stringify(riskAssessmentData, null, 2),
+        customer_id: selectedCustomerId,
+        case_id: selectedCaseId,
+      };
+
       const { data, error } = await supabase.functions.invoke("ai-search", {
         body: {
           client_data: clientData,
           search_urls: config.search_urls,
           prompt_template: config.prompt_template,
-          ai_endpoint_url: (config as any).ai_endpoint_url || undefined,
-          ai_api_key: (config as any).ai_api_key || undefined,
-          ai_model: (config as any).ai_model || undefined,
+          ai_endpoint_url: config.ai_endpoint_url || undefined,
+          ai_api_key: config.ai_api_key || undefined,
+          ai_model: config.ai_model || undefined,
         },
       });
 
@@ -215,7 +391,12 @@ export default function AiAdmin() {
           results: data as any,
           status: "completed",
         });
-        toast({ title: "Search completed" });
+
+        const riskAssessmentCount = Array.isArray(riskAssessmentData?.data) ? riskAssessmentData.data.length : 0;
+        toast({
+          title: "Search completed",
+          description: `Used ${riskAssessmentCount} risk assessment${riskAssessmentCount === 1 ? "" : "s"} from the selected case.`,
+        });
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -227,6 +408,9 @@ export default function AiAdmin() {
   const getConfigRoute = (fnId: string) => {
     return `/ai-admin/config/${fnId}`;
   };
+
+  const selectedCase = caseOptions.find((entry) => entry.id === selectedCaseId);
+  const hasMeoSession = Boolean(meoToken && meoUserId);
 
   return (
     <AppLayout>
@@ -340,28 +524,95 @@ export default function AiAdmin() {
                           </div>
                         ) : (
                           <>
-                            <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-                              <div className="space-y-1">
-                                <Label className="text-sm font-medium">Risk text</Label>
-                                <p className="text-xs text-muted-foreground">
-                                  This is entered per run from the AI function and is available in the prompt as <span className="font-mono">{"{{risk_text}}"}</span>.
-                                </p>
+                            <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+                              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                <div className="space-y-1">
+                                  <Label className="text-sm font-medium">Risk assessment source</Label>
+                                  <p className="text-xs text-muted-foreground">
+                                    Select a workspace and case. The function will fetch the risk assessment automatically and inject it as <span className="font-mono">{"{{risk_text}}"}</span>.
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void loadWorkspaceParams(selectedCustomerId || undefined)}
+                                  disabled={!hasMeoSession || loadingWorkspaceParams || loadingCases}
+                                  className="gap-2"
+                                >
+                                  {loadingWorkspaceParams || loadingCases ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="h-4 w-4" />
+                                  )}
+                                  Refresh MEO data
+                                </Button>
                               </div>
-                              <Textarea
-                                value={inlineRiskText[fn.id] || ""}
-                                onChange={(e) =>
-                                  setInlineRiskText((prev) => ({ ...prev, [fn.id]: e.target.value }))
-                                }
-                                placeholder="Paste the risk assessment text for this run..."
-                                rows={8}
-                                className="min-h-40"
-                              />
+
+                              {!hasMeoSession ? (
+                                <div className="rounded-md border border-dashed bg-background/60 p-3 text-sm text-muted-foreground">
+                                  Sign in to your MEO account first to load workspaces and cases.
+                                </div>
+                              ) : (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Workspace</Label>
+                                    <Select
+                                      value={selectedCustomerId}
+                                      onValueChange={(value) => void handleWorkspaceChange(value)}
+                                      disabled={loadingWorkspaceParams || workspaceOptions.length === 0}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder={loadingWorkspaceParams ? "Loading workspaces..." : "Select workspace"} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {workspaceOptions.map((workspace) => (
+                                          <SelectItem key={workspace.id} value={workspace.id}>
+                                            {workspace.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Case</Label>
+                                    <Select
+                                      value={selectedCaseId}
+                                      onValueChange={handleCaseChange}
+                                      disabled={!selectedCustomerId || loadingCases || caseOptions.length === 0}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder={loadingCases ? "Loading cases..." : "Select case"} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {caseOptions.map((entry) => (
+                                          <SelectItem key={entry.id} value={entry.id}>
+                                            {entry.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              )}
+
+                              {selectedCase && (
+                                <div className="flex flex-wrap gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    Case ID: {selectedCaseId}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    Status: {selectedCase.status}
+                                  </Badge>
+                                </div>
+                              )}
                             </div>
 
                             <div className="space-y-3">
                               <Label className="text-sm font-medium">Optional saved input data</Label>
                               <p className="text-xs text-muted-foreground">
-                                Use saved datasets only for reusable structured fields. Risk text is always entered here in the function runner.
+                                Use saved datasets for reusable fields only. The selected case now supplies <span className="font-mono">{"{{risk_text}}"}</span> automatically.
                               </p>
                               {allTestData.length === 0 ? (
                                 <div className="flex items-center gap-3 py-4">
@@ -410,7 +661,7 @@ export default function AiAdmin() {
 
                             <Button
                               onClick={() => runFunction(fn)}
-                              disabled={running || !inlineRiskText[fn.id]?.trim()}
+                              disabled={running || loadingCases || loadingWorkspaceParams || !selectedCustomerId || !selectedCaseId}
                               className="gap-2"
                             >
                               {running ? (
@@ -418,7 +669,7 @@ export default function AiAdmin() {
                               ) : (
                                 <Play className="h-4 w-4" />
                               )}
-                              {running ? "Running..." : "Run Search"}
+                              {running ? "Running..." : fn.type === "summarizer" ? "Generate Summary" : "Run Function"}
                             </Button>
                           </>
                         )}
@@ -439,7 +690,7 @@ export default function AiAdmin() {
                               <div className="flex flex-wrap gap-2 pt-2 border-t">
                                 {result.sources.map((s: any, i: number) => (
                                   <Badge key={i} variant={s.hasContent ? "default" : "secondary"} className="text-xs">
-                                    {new URL(s.url).hostname}
+                                    {s.url.startsWith("http") ? new URL(s.url).hostname : s.url}
                                   </Badge>
                                 ))}
                               </div>
