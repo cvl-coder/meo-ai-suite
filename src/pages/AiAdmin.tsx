@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken, getMeoUserId } from "@/lib/meoToken";
 import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database, Plus, RefreshCw } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 const iconMap: Record<string, React.ElementType> = {
   "globe-search": Search,
@@ -78,6 +79,8 @@ export default function AiAdmin() {
   const [selectedTestData, setSelectedTestData] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [streamedText, setStreamedText] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newFn, setNewFn] = useState({ name: "", description: "", type: "external_search" as string, icon: "search" });
   const [creating, setCreating] = useState(false);
@@ -350,6 +353,8 @@ export default function AiAdmin() {
 
     setRunning(true);
     setResult(null);
+    setStreamedText("");
+    setIsStreaming(true);
 
     try {
       const riskAssessmentData = await invokeMeoAction("getRiskAssessments", {
@@ -369,8 +374,18 @@ export default function AiAdmin() {
         case_id: selectedCaseId,
       };
 
-      const { data, error } = await supabase.functions.invoke("ai-search", {
-        body: {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const session = (await supabase.auth.getSession()).data.session;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/ai-search`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseKey,
+          "Authorization": `Bearer ${session?.access_token || supabaseKey}`,
+        },
+        body: JSON.stringify({
           client_data: clientData,
           search_urls: config.search_urls,
           prompt_template: config.prompt_template,
@@ -378,19 +393,86 @@ export default function AiAdmin() {
           ai_api_key: config.ai_api_key || undefined,
           ai_model: config.ai_model || undefined,
           output_language: config.output_language || "English",
-        },
+        }),
       });
 
-      if (error) {
-        toast({ title: "Search failed", description: error.message, variant: "destructive" });
-      } else if (data && !data.success) {
-        toast({ title: "Search failed", description: data.error || "Unknown error", variant: "destructive" });
-      } else {
-        setResult(data);
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("text/event-stream")) {
+        // Streaming response
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullText = "";
+        let meta: any = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+
+            // Handle custom meta event
+            if (trimmed.startsWith("event: meta")) continue;
+            if (trimmed.startsWith("data: ") && meta === "pending") {
+              try {
+                meta = JSON.parse(trimmed.slice(6));
+              } catch { /* skip */ }
+              continue;
+            }
+
+            if (trimmed === "event: meta") {
+              meta = "pending";
+              continue;
+            }
+
+            if (!trimmed.startsWith("data: ")) continue;
+            const data = trimmed.slice(6);
+            if (data === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullText += delta;
+                setStreamedText(fullText);
+              }
+            } catch { /* skip */ }
+          }
+        }
+
+        // Handle meta event detection properly
+        // Re-parse buffer for any remaining meta
+        if (buffer.trim()) {
+          const remaining = buffer.trim();
+          if (remaining.startsWith("data: ") && remaining.length > 6) {
+            try {
+              const parsed = JSON.parse(remaining.slice(6));
+              if (parsed.sources) meta = parsed;
+            } catch { /* skip */ }
+          }
+        }
+
+        setIsStreaming(false);
+
+        const finalResult = {
+          success: true,
+          synthesis: fullText || "No synthesis generated",
+          sources: meta?.sources || [],
+          prompt_used: meta?.prompt_used || "",
+        };
+        setResult(finalResult);
+
         await supabase.from("ai_search_results").insert({
           config_id: config.id,
           client_data: clientData as any,
-          results: data as any,
+          results: finalResult as any,
           status: "completed",
         });
 
@@ -399,8 +481,16 @@ export default function AiAdmin() {
           title: "Search completed",
           description: `Used ${riskAssessmentCount} risk assessment${riskAssessmentCount === 1 ? "" : "s"} from the selected case.`,
         });
+      } else {
+        // JSON error response
+        const data = await response.json();
+        if (!data.success) {
+          toast({ title: "Search failed", description: data.error || "Unknown error", variant: "destructive" });
+        }
+        setIsStreaming(false);
       }
     } catch (err: any) {
+      setIsStreaming(false);
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
 
@@ -676,19 +766,31 @@ export default function AiAdmin() {
                           </>
                         )}
 
-                        {result && (
+                        {(isStreaming && streamedText) && (
+                          <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                            <h4 className="text-sm font-semibold flex items-center gap-2">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Streaming response...
+                            </h4>
+                            <div className="prose prose-sm max-w-none text-foreground text-sm">
+                              <ReactMarkdown>{streamedText}</ReactMarkdown>
+                            </div>
+                          </div>
+                        )}
+
+                        {result && !isStreaming && (
                           <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
                             <h4 className="text-sm font-semibold">Results</h4>
                             {result.synthesis ? (
-                              <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap text-sm">
-                                {result.synthesis}
+                              <div className="prose prose-sm max-w-none text-foreground text-sm">
+                                <ReactMarkdown>{result.synthesis}</ReactMarkdown>
                               </div>
                             ) : (
                               <pre className="overflow-auto text-xs font-mono max-h-96">
                                 {JSON.stringify(result, null, 2)}
                               </pre>
                             )}
-                            {result.sources && (
+                            {result.sources && result.sources.length > 0 && (
                               <div className="flex flex-wrap gap-2 pt-2 border-t">
                                 {result.sources.map((s: any, i: number) => (
                                   <Badge key={i} variant={s.hasContent ? "default" : "secondary"} className="text-xs">
