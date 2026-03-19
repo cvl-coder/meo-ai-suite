@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Copy, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { BulkCaseImport } from "@/components/api/BulkCaseImport";
 import { EntityEditForm } from "@/components/api/EntityEditForm";
@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMeoToken } from "@/lib/meoToken";
 
 type ComponentOverride = { componentId: string; value: string };
+type WorkspaceOption = { id: string; name: string; caseId?: string };
 
 type ActionCard = {
   action: string;
@@ -51,6 +52,8 @@ export default function ApiTest() {
   const [entityId, setEntityId] = useState("");
   const [checkId, setCheckId] = useState("");
   const [copied, setCopied] = useState(false);
+  const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>([]);
+  const [loadingWorkspaceParams, setLoadingWorkspaceParams] = useState(false);
 
   const [entityName, setEntityName] = useState("");
   const [entityEmail, setEntityEmail] = useState("");
@@ -92,10 +95,6 @@ export default function ApiTest() {
   const [formSigningRespondentEmail, setFormSigningRespondentEmail] = useState("");
   const [componentOverrides, setComponentOverrides] = useState<ComponentOverride[]>([{ componentId: "", value: "" }]);
 
-  useEffect(() => {
-    setPersonToken(getMeoToken() || "");
-  }, []);
-
   const userId = useMemo(() => localStorage.getItem("meo_user_id") || "", []);
 
   const invokeAction = async (action: string, payload: Record<string, any>) => {
@@ -107,14 +106,152 @@ export default function ApiTest() {
       if (data?.error) throw new Error(data.error);
       setResult(data);
       toast({ title: "Success", description: `${action} executed successfully.` });
+      return data;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unexpected error";
       setResult({ error: message });
       toast({ title: "Error", description: message, variant: "destructive" });
+      throw error;
     } finally {
       setLoading(false);
     }
   };
+
+  const loadCaseForCustomer = useCallback(async (nextCustomerId: string, nextPersonToken: string) => {
+    if (!nextCustomerId || !nextPersonToken) return;
+
+    const savedCaseId = localStorage.getItem(`meo_case_id:${nextCustomerId}`) || "";
+    if (savedCaseId) {
+      setCaseId(savedCaseId);
+    }
+
+    const { data, error } = await supabase.functions.invoke("meo-api-test", {
+      body: {
+        action: "getCases",
+        payload: {
+          customerId: nextCustomerId,
+          page: 1,
+          personToken: nextPersonToken,
+          limit: 1,
+          statuses: ["Open", "Approved", "Rejected"],
+        },
+      },
+    });
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    const firstCaseId = data?.data?.[0]?.id || "";
+    setCaseId(firstCaseId);
+
+    if (firstCaseId) {
+      localStorage.setItem(`meo_case_id:${nextCustomerId}`, firstCaseId);
+    }
+
+    setWorkspaceOptions((prev) => prev.map((workspace) => (
+      workspace.id === nextCustomerId ? { ...workspace, caseId: firstCaseId } : workspace
+    )));
+
+    return firstCaseId;
+  }, []);
+
+  const loadWorkspaceParams = useCallback(async (preferredCustomerId?: string) => {
+    if (!personToken || !userId) {
+      toast({
+        title: "Missing parameters",
+        description: "Sign in first so the page can load your workspaces.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoadingWorkspaceParams(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("meo-api-test", {
+        body: {
+          action: "getAccount",
+          payload: { personToken, userId },
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const adminMemberships = Array.isArray(data?.result?.isAdminAt) ? data.result.isAdminAt : [];
+      if (adminMemberships.length === 0) {
+        throw new Error("No customer workspaces were found on this account.");
+      }
+
+      const nextWorkspaces: WorkspaceOption[] = adminMemberships
+        .filter((entry: any) => entry?.customerId)
+        .map((entry: any) => ({
+          id: String(entry.customerId),
+          name: entry.name || entry.customerId,
+        }));
+
+      setWorkspaceOptions(nextWorkspaces);
+
+      const savedCustomerId = localStorage.getItem("selectedCustomerId") || "";
+      const selectedWorkspace = nextWorkspaces.find((workspace) => workspace.id === preferredCustomerId)
+        || nextWorkspaces.find((workspace) => workspace.id === savedCustomerId)
+        || nextWorkspaces[0];
+
+      setCustomerId(selectedWorkspace.id);
+      localStorage.setItem("selectedCustomerId", selectedWorkspace.id);
+
+      await loadCaseForCustomer(selectedWorkspace.id, personToken);
+
+      toast({
+        title: "Workspace loaded",
+        description: `Loaded ${selectedWorkspace.name}.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Unable to load workspaces",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingWorkspaceParams(false);
+    }
+  }, [loadCaseForCustomer, personToken, userId]);
+
+  const handleWorkspaceChange = async (nextCustomerId: string) => {
+    setCustomerId(nextCustomerId);
+    localStorage.setItem("selectedCustomerId", nextCustomerId);
+
+    try {
+      setLoadingWorkspaceParams(true);
+      await loadCaseForCustomer(nextCustomerId, personToken);
+    } catch (error) {
+      toast({
+        title: "Unable to load case",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingWorkspaceParams(false);
+    }
+  };
+
+  useEffect(() => {
+    const storedToken = getMeoToken() || "";
+    const savedCustomerId = localStorage.getItem("selectedCustomerId") || "";
+
+    setPersonToken(storedToken);
+    setCustomerId(savedCustomerId);
+
+    if (savedCustomerId) {
+      setCaseId(localStorage.getItem(`meo_case_id:${savedCustomerId}`) || "");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (personToken && userId) {
+      void loadWorkspaceParams(customerId || undefined);
+    }
+  }, [customerId, loadWorkspaceParams, personToken, userId]);
 
   const copyToken = async () => {
     if (!personToken) return;
@@ -219,7 +356,27 @@ export default function ApiTest() {
                 <CardTitle>API Parameters</CardTitle>
                 <CardDescription>Core values reused by the imported test actions.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="min-w-[260px] flex-1 space-y-2">
+                    <Label>Workspace</Label>
+                    <Select value={customerId || undefined} onValueChange={handleWorkspaceChange} disabled={loadingWorkspaceParams || workspaceOptions.length === 0}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={workspaceOptions.length ? "Select workspace" : "Load workspaces from account"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workspaceOptions.map((workspace) => (
+                          <SelectItem key={workspace.id} value={workspace.id}>{workspace.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button variant="outline" onClick={() => void loadWorkspaceParams()} disabled={loadingWorkspaceParams || !personToken || !userId}>
+                    {loadingWorkspaceParams ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Load workspace params
+                  </Button>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -260,7 +417,7 @@ export default function ApiTest() {
                     <CardDescription>{card.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button className="w-full" disabled={loading} onClick={() => invokeAction(card.action, simpleActionPayload(card.action))}>
+                    <Button className="w-full" disabled={loading} onClick={() => void invokeAction(card.action, simpleActionPayload(card.action))}>
                       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Test"}
                     </Button>
                   </CardContent>
@@ -278,8 +435,8 @@ export default function ApiTest() {
                   <div className="space-y-2"><Label>Check ID</Label><Input value={checkId} onChange={(e) => setCheckId(e.target.value)} placeholder="Check ID" /></div>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Button variant="outline" disabled={loading} onClick={() => invokeAction("getCheckData", { checkId, caseId, customerId, personToken })}>Get Check Data</Button>
-                  <Button disabled={loading} onClick={() => invokeAction("getCheckIdentities", { checkId, caseId, customerId, personToken })}>Get Identities</Button>
+                  <Button variant="outline" disabled={loading} onClick={() => void invokeAction("getCheckData", { checkId, caseId, customerId, personToken })}>Get Check Data</Button>
+                  <Button disabled={loading} onClick={() => void invokeAction("getCheckIdentities", { checkId, caseId, customerId, personToken })}>Get Identities</Button>
                 </div>
               </CardContent>
             </Card>
@@ -294,7 +451,7 @@ export default function ApiTest() {
                   <Label>CVR</Label>
                   <Input value={datafordelerCvr} onChange={(e) => setDatafordelerCvr(e.target.value)} placeholder="8 digit CVR" />
                 </div>
-                <Button disabled={loading} onClick={() => invokeAction("datafordelerCvr", { cvr: datafordelerCvr })}>Lookup</Button>
+                <Button disabled={loading} onClick={() => void invokeAction("datafordelerCvr", { cvr: datafordelerCvr })}>Lookup</Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -358,9 +515,9 @@ export default function ApiTest() {
                 <div className="space-y-2"><Label>Update Relations JSON</Label><Textarea rows={5} value={updateRelationsJson} onChange={(e) => setUpdateRelationsJson(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Custom Properties JSON</Label><Textarea rows={5} value={customPropertiesJson} onChange={(e) => setCustomPropertiesJson(e.target.value)} /></div>
                 <div className="flex flex-wrap gap-3">
-                  <Button variant="outline" disabled={loading} onClick={() => { try { invokeAction("updateEntity", { caseId, customerId, entityId, entityData: JSON.parse(updateEntityJson), personToken }); } catch { toast({ title: "Invalid JSON", description: "Update entity JSON is invalid.", variant: "destructive" }); } }}>Update Entity</Button>
-                  <Button variant="outline" disabled={loading} onClick={() => { try { invokeAction("updateEntityRelations", { caseId, customerId, entityId, relations: JSON.parse(updateRelationsJson), personToken }); } catch { toast({ title: "Invalid JSON", description: "Relations JSON is invalid.", variant: "destructive" }); } }}>Update Relations</Button>
-                  <Button disabled={loading} onClick={() => { try { invokeAction("setEntityCustomProperties", { customerId, entityId, customProperties: JSON.parse(customPropertiesJson), personToken }); } catch { toast({ title: "Invalid JSON", description: "Custom properties JSON is invalid.", variant: "destructive" }); } }}>Set Custom Properties</Button>
+                  <Button variant="outline" disabled={loading} onClick={() => { try { void invokeAction("updateEntity", { caseId, customerId, entityId, entityData: JSON.parse(updateEntityJson), personToken }); } catch { toast({ title: "Invalid JSON", description: "Update entity JSON is invalid.", variant: "destructive" }); } }}>Update Entity</Button>
+                  <Button variant="outline" disabled={loading} onClick={() => { try { void invokeAction("updateEntityRelations", { caseId, customerId, entityId, relations: JSON.parse(updateRelationsJson), personToken }); } catch { toast({ title: "Invalid JSON", description: "Relations JSON is invalid.", variant: "destructive" }); } }}>Update Relations</Button>
+                  <Button disabled={loading} onClick={() => { try { void invokeAction("setEntityCustomProperties", { customerId, entityId, customProperties: JSON.parse(customPropertiesJson), personToken }); } catch { toast({ title: "Invalid JSON", description: "Custom properties JSON is invalid.", variant: "destructive" }); } }}>Set Custom Properties</Button>
                 </div>
               </CardContent>
             </Card>
@@ -378,9 +535,9 @@ export default function ApiTest() {
                   <div className="space-y-2"><Label>Delete Admin ID</Label><Input value={deleteAdminId} onChange={(e) => setDeleteAdminId(e.target.value)} /></div>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Button variant="outline" disabled={loading} onClick={() => invokeAction("sendAdminInvite", { customerId, personToken, userId, email: adminInviteEmail, name: adminInviteName, roleIds: ["CustomerAdmin"] })}>Send Invite</Button>
-                  <Button variant="outline" disabled={loading} onClick={() => invokeAction("deleteAdminInvite", { customerId, personToken, requestId: deleteInviteRequestId, userId })}>Delete Invite</Button>
-                  <Button disabled={loading} onClick={() => invokeAction("deleteAdmin", { adminId: deleteAdminId, customerId, personToken, userId })}>Delete Admin</Button>
+                  <Button variant="outline" disabled={loading} onClick={() => void invokeAction("sendAdminInvite", { customerId, personToken, userId, email: adminInviteEmail, name: adminInviteName, roleIds: ["CustomerAdmin"] })}>Send Invite</Button>
+                  <Button variant="outline" disabled={loading} onClick={() => void invokeAction("deleteAdminInvite", { customerId, personToken, requestId: deleteInviteRequestId, userId })}>Delete Invite</Button>
+                  <Button disabled={loading} onClick={() => void invokeAction("deleteAdmin", { adminId: deleteAdminId, customerId, personToken, userId })}>Delete Admin</Button>
                 </div>
               </CardContent>
             </Card>
@@ -426,7 +583,7 @@ export default function ApiTest() {
                     </div>
                   ))}
                 </div>
-                <Button disabled={loading} onClick={() => invokeAction("initiateFormSigning", { formTemplateId: formSigningTemplateId, respondentName: formSigningRespondentName, respondentEmail: formSigningRespondentEmail, componentValueOverrides: componentOverrides })}>Initiate Form Signing</Button>
+                <Button disabled={loading} onClick={() => void invokeAction("initiateFormSigning", { formTemplateId: formSigningTemplateId, respondentName: formSigningRespondentName, respondentEmail: formSigningRespondentEmail, componentValueOverrides: componentOverrides })}>Initiate Form Signing</Button>
               </CardContent>
             </Card>
           </TabsContent>
