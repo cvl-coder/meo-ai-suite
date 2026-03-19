@@ -569,6 +569,25 @@ export default function AiSearchConfig() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Output Language</Label>
+                  <Select
+                    value={config.output_language || "English"}
+                    onValueChange={(v) => setConfig({ ...config, output_language: v })}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {OUTPUT_LANGUAGES.map((lang) => (
+                        <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    The AI will write its output in this language.
+                  </p>
+                </div>
                 <Textarea
                   value={config.prompt_template}
                   onChange={(e) =>
