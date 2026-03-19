@@ -766,19 +766,31 @@ export default function AiAdmin() {
                           </>
                         )}
 
-                        {result && (
+                        {(isStreaming && streamedText) && (
+                          <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                            <h4 className="text-sm font-semibold flex items-center gap-2">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Streaming response...
+                            </h4>
+                            <div className="prose prose-sm max-w-none text-foreground text-sm">
+                              <ReactMarkdown>{streamedText}</ReactMarkdown>
+                            </div>
+                          </div>
+                        )}
+
+                        {result && !isStreaming && (
                           <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
                             <h4 className="text-sm font-semibold">Results</h4>
                             {result.synthesis ? (
-                              <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap text-sm">
-                                {result.synthesis}
+                              <div className="prose prose-sm max-w-none text-foreground text-sm">
+                                <ReactMarkdown>{result.synthesis}</ReactMarkdown>
                               </div>
                             ) : (
                               <pre className="overflow-auto text-xs font-mono max-h-96">
                                 {JSON.stringify(result, null, 2)}
                               </pre>
                             )}
-                            {result.sources && (
+                            {result.sources && result.sources.length > 0 && (
                               <div className="flex flex-wrap gap-2 pt-2 border-t">
                                 {result.sources.map((s: any, i: number) => (
                                   <Badge key={i} variant={s.hasContent ? "default" : "secondary"} className="text-xs">
