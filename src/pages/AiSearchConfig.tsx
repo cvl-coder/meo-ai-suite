@@ -137,9 +137,9 @@ export default function AiSearchConfig() {
         ...data,
         search_urls: migratedUrls,
         client_fields: (data.client_fields as any) || [],
-        ai_endpoint_url: (data as any).ai_endpoint_url || "",
+        ai_endpoint_url: (data as any).ai_endpoint_url || "http://core.meo.io/v1",
         ai_api_key: (data as any).ai_api_key || "",
-        ai_model: (data as any).ai_model || "",
+        ai_model: (data as any).ai_model || "llama3.1:latest",
         output_language: (data as any).output_language || "English",
       });
     } else {
