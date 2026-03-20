@@ -33,7 +33,7 @@ serve(async (req) => {
   }
 
   try {
-    const { client_data, search_urls, prompt_template, ai_endpoint_url, ai_api_key, ai_model, output_language } = await req.json();
+    const { config_id, client_data, search_urls, prompt_template, ai_endpoint_url, ai_model, output_language } = await req.json();
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     if (!FIRECRAWL_API_KEY) {
@@ -51,12 +51,31 @@ serve(async (req) => {
       );
     }
 
+    // Fetch AI API key from database (never sent from frontend)
+    let aiApiKey = "";
+    if (config_id) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.49.1");
+        const supabaseAdmin = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        const { data: configRow } = await supabaseAdmin
+          .from("ai_search_configs")
+          .select("ai_api_key")
+          .eq("id", config_id)
+          .single();
+        aiApiKey = configRow?.ai_api_key || "";
+      } catch (err) {
+        console.error("Failed to fetch AI API key from config:", err);
+      }
+    }
+
     let aiEndpoint = ai_endpoint_url.replace(/\/+$/, "");
     // Append /chat/completions if not already present (OpenAI-compatible format)
     if (!aiEndpoint.endsWith("/chat/completions")) {
       aiEndpoint += "/chat/completions";
     }
-    const aiApiKey: string = ai_api_key || "";
     const aiModelName: string = ai_model || "";
 
     // Step 1: Build the prompt by replacing {{variables}}
