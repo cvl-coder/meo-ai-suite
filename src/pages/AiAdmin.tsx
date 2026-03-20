@@ -309,19 +309,20 @@ export default function AiAdmin() {
 
     if (!configMap[fn.id]) {
       const { data } = await supabase
-        .from("ai_search_configs")
-        .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_model, output_language")
+        .from("ai_search_configs_safe" as any)
+        .select("*")
         .eq("function_id", fn.id)
         .limit(1)
         .maybeSingle();
 
       if (data) {
+        const configData = data as any;
         setConfigMap((prev) => ({
           ...prev,
           [fn.id]: {
-            ...data,
-            search_urls: (data.search_urls as any) || [],
-            client_fields: (data.client_fields as any) || [],
+            ...configData,
+            search_urls: configData.search_urls || [],
+            client_fields: configData.client_fields || [],
           },
         }));
       }
