@@ -114,7 +114,7 @@ export default function AiSearchConfig() {
   const fetchConfig = async () => {
     const { data, error } = await supabase
       .from("ai_search_configs")
-      .select("*")
+      .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_api_key, ai_model, output_language")
       .eq("function_id", functionId!)
       .limit(1)
       .maybeSingle();
