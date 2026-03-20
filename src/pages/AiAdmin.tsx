@@ -309,8 +309,8 @@ export default function AiAdmin() {
 
     if (!configMap[fn.id]) {
       const { data } = await supabase
-        .from("ai_search_configs")
-        .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_model, output_language")
+        .from("ai_search_configs_safe" as any)
+        .select("*")
         .eq("function_id", fn.id)
         .limit(1)
         .maybeSingle();
