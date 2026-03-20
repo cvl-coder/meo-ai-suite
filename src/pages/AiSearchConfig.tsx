@@ -265,11 +265,11 @@ export default function AiSearchConfig() {
       // Call the ai-search edge function
       const { data: fnData, error: fnError } = await supabase.functions.invoke("ai-search", {
         body: {
+          config_id: config.id,
           client_data: testData,
           search_urls: config.search_urls,
           prompt_template: config.prompt_template,
           ai_endpoint_url: config.ai_endpoint_url || undefined,
-          ai_api_key: config.ai_api_key || undefined,
           ai_model: config.ai_model || undefined,
           output_language: config.output_language || "English",
         },
