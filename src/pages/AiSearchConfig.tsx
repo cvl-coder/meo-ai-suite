@@ -177,23 +177,29 @@ export default function AiSearchConfig() {
   const saveConfig = async () => {
     if (!config) return;
     setSaving(true);
+    // Build update payload — only include ai_api_key if user entered a new value
+    const updatePayload: any = {
+      search_urls: config.search_urls as any,
+      prompt_template: config.prompt_template,
+      client_fields: config.client_fields as any,
+      ai_endpoint_url: config.ai_endpoint_url,
+      ai_model: config.ai_model,
+      output_language: config.output_language,
+    };
+    if (config.ai_api_key.trim()) {
+      updatePayload.ai_api_key = config.ai_api_key;
+    }
     const { error } = await supabase
       .from("ai_search_configs")
-      .update({
-        search_urls: config.search_urls as any,
-        prompt_template: config.prompt_template,
-        client_fields: config.client_fields as any,
-        ai_endpoint_url: config.ai_endpoint_url,
-        ai_api_key: config.ai_api_key,
-        ai_model: config.ai_model,
-        output_language: config.output_language,
-      } as any)
+      .update(updatePayload)
       .eq("id", config.id);
 
     if (error) {
       toast({ title: "Error saving", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Configuration saved" });
+      // Reset the key field after save so it doesn't linger in memory
+      setConfig({ ...config, ai_api_key: "" });
     }
     setSaving(false);
   };
