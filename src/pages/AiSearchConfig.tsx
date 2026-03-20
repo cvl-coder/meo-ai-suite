@@ -399,13 +399,14 @@ export default function AiSearchConfig() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label>API Key <span className="text-destructive">*</span></Label>
+                  <Label>API Key</Label>
                   <Input
                     type="password"
-                    placeholder="sk-..."
+                    placeholder="Enter new API key to update (current key is hidden)"
                     value={config.ai_api_key}
                     onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground">For security, the current key is never sent to the browser. Enter a new key only if you want to change it.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Model Name</Label>
