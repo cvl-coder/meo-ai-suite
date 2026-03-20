@@ -127,6 +127,13 @@ export type Database = {
             referencedRelation: "ai_search_configs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_search_results_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "ai_search_configs_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_test_data: {
@@ -166,7 +173,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ai_search_configs_safe: {
+        Row: {
+          ai_endpoint_url: string | null
+          ai_model: string | null
+          client_fields: Json | null
+          function_id: string | null
+          id: string | null
+          output_language: string | null
+          prompt_template: string | null
+          search_urls: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_endpoint_url?: string | null
+          ai_model?: string | null
+          client_fields?: Json | null
+          function_id?: string | null
+          id?: string | null
+          output_language?: string | null
+          prompt_template?: string | null
+          search_urls?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_endpoint_url?: string | null
+          ai_model?: string | null
+          client_fields?: Json | null
+          function_id?: string | null
+          id?: string | null
+          output_language?: string | null
+          prompt_template?: string | null
+          search_urls?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_search_configs_function_id_fkey"
+            columns: ["function_id"]
+            isOneToOne: false
+            referencedRelation: "ai_functions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
