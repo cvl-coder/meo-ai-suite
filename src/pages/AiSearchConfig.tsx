@@ -112,9 +112,10 @@ export default function AiSearchConfig() {
   };
 
   const fetchConfig = async () => {
+    // Use the safe view that excludes ai_api_key
     const { data, error } = await supabase
-      .from("ai_search_configs")
-      .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_api_key, ai_model, output_language")
+      .from("ai_search_configs_safe")
+      .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_model, output_language")
       .eq("function_id", functionId!)
       .limit(1)
       .maybeSingle();
@@ -137,17 +138,17 @@ export default function AiSearchConfig() {
         ...data,
         search_urls: migratedUrls,
         client_fields: (data.client_fields as any) || [],
-        ai_endpoint_url: (data as any).ai_endpoint_url || "http://core.meo.io/v1",
-        ai_api_key: (data as any).ai_api_key || "",
-        ai_model: (data as any).ai_model || "llama3.1:latest",
-        output_language: (data as any).output_language || "English",
-      });
+        ai_endpoint_url: data.ai_endpoint_url || "http://core.meo.io/v1",
+        ai_api_key: "", // Never loaded from server
+        ai_model: data.ai_model || "llama3.1:latest",
+        output_language: data.output_language || "English",
+      } as SearchConfig);
     } else {
       // Auto-create a config for this function
       const { data: newConfig, error: createError } = await supabase
         .from("ai_search_configs")
         .insert({ function_id: functionId!, search_urls: [], client_fields: [], prompt_template: "" })
-        .select()
+        .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_model, output_language")
         .single();
 
       if (createError) {
@@ -157,7 +158,8 @@ export default function AiSearchConfig() {
           ...newConfig,
           search_urls: [],
           client_fields: [],
-        });
+          ai_api_key: "",
+        } as SearchConfig);
       }
     }
     setLoading(false);
@@ -175,23 +177,29 @@ export default function AiSearchConfig() {
   const saveConfig = async () => {
     if (!config) return;
     setSaving(true);
+    // Build update payload — only include ai_api_key if user entered a new value
+    const updatePayload: any = {
+      search_urls: config.search_urls as any,
+      prompt_template: config.prompt_template,
+      client_fields: config.client_fields as any,
+      ai_endpoint_url: config.ai_endpoint_url,
+      ai_model: config.ai_model,
+      output_language: config.output_language,
+    };
+    if (config.ai_api_key.trim()) {
+      updatePayload.ai_api_key = config.ai_api_key;
+    }
     const { error } = await supabase
       .from("ai_search_configs")
-      .update({
-        search_urls: config.search_urls as any,
-        prompt_template: config.prompt_template,
-        client_fields: config.client_fields as any,
-        ai_endpoint_url: config.ai_endpoint_url,
-        ai_api_key: config.ai_api_key,
-        ai_model: config.ai_model,
-        output_language: config.output_language,
-      } as any)
+      .update(updatePayload)
       .eq("id", config.id);
 
     if (error) {
       toast({ title: "Error saving", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Configuration saved" });
+      // Reset the key field after save so it doesn't linger in memory
+      setConfig({ ...config, ai_api_key: "" });
     }
     setSaving(false);
   };
@@ -391,13 +399,14 @@ export default function AiSearchConfig() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label>API Key <span className="text-destructive">*</span></Label>
+                  <Label>API Key</Label>
                   <Input
                     type="password"
-                    placeholder="sk-..."
+                    placeholder="Enter new API key to update (current key is hidden)"
                     value={config.ai_api_key}
                     onChange={(e) => setConfig({ ...config, ai_api_key: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground">For security, the current key is never sent to the browser. Enter a new key only if you want to change it.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Model Name</Label>
