@@ -112,9 +112,10 @@ export default function AiSearchConfig() {
   };
 
   const fetchConfig = async () => {
+    // Use the safe view that excludes ai_api_key
     const { data, error } = await supabase
-      .from("ai_search_configs")
-      .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_api_key, ai_model, output_language")
+      .from("ai_search_configs_safe")
+      .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_model, output_language")
       .eq("function_id", functionId!)
       .limit(1)
       .maybeSingle();
@@ -137,17 +138,17 @@ export default function AiSearchConfig() {
         ...data,
         search_urls: migratedUrls,
         client_fields: (data.client_fields as any) || [],
-        ai_endpoint_url: (data as any).ai_endpoint_url || "http://core.meo.io/v1",
-        ai_api_key: (data as any).ai_api_key || "",
-        ai_model: (data as any).ai_model || "llama3.1:latest",
-        output_language: (data as any).output_language || "English",
-      });
+        ai_endpoint_url: data.ai_endpoint_url || "http://core.meo.io/v1",
+        ai_api_key: "", // Never loaded from server
+        ai_model: data.ai_model || "llama3.1:latest",
+        output_language: data.output_language || "English",
+      } as SearchConfig);
     } else {
       // Auto-create a config for this function
       const { data: newConfig, error: createError } = await supabase
         .from("ai_search_configs")
         .insert({ function_id: functionId!, search_urls: [], client_fields: [], prompt_template: "" })
-        .select()
+        .select("id, function_id, search_urls, prompt_template, client_fields, ai_endpoint_url, ai_model, output_language")
         .single();
 
       if (createError) {
@@ -157,7 +158,8 @@ export default function AiSearchConfig() {
           ...newConfig,
           search_urls: [],
           client_fields: [],
-        });
+          ai_api_key: "",
+        } as SearchConfig);
       }
     }
     setLoading(false);
