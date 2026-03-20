@@ -316,12 +316,13 @@ export default function AiAdmin() {
         .maybeSingle();
 
       if (data) {
+        const configData = data as any;
         setConfigMap((prev) => ({
           ...prev,
           [fn.id]: {
-            ...data,
-            search_urls: (data.search_urls as any) || [],
-            client_fields: (data.client_fields as any) || [],
+            ...configData,
+            search_urls: configData.search_urls || [],
+            client_fields: configData.client_fields || [],
           },
         }));
       }
