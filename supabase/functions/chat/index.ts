@@ -27,7 +27,6 @@ serve(async (req) => {
         baseUrl += "/chat/completions";
       }
       endpoint = baseUrl;
-      // Use provided key, or fall back to MEO_API_KEY for core.meo.io
       apiKey = custom_api_key || Deno.env.get("MEO_API_KEY") || "";
       modelName = model || "";
     } else {
@@ -42,20 +41,26 @@ serve(async (req) => {
       modelName = model || "google/gemini-3-flash-preview";
     }
 
-    console.log(`Chat request: provider=${provider}, model=${modelName}, endpoint=${endpoint}`);
+    console.log(`Chat request: provider=${provider}, model=${modelName}, endpoint=${endpoint}, hasApiKey=${!!apiKey}`);
 
     let response: Response;
-    const headers: Record<string, string> = {
+    const fetchHeaders: Record<string, string> = {
       "Content-Type": "application/json",
     };
+    
     if (apiKey) {
-      headers["Authorization"] = `Bearer ${apiKey}`;
+      // Use X-API-Key for MEO endpoints, Bearer token for others
+      if (endpoint.includes("meo.io")) {
+        fetchHeaders["X-API-Key"] = apiKey;
+      } else {
+        fetchHeaders["Authorization"] = `Bearer ${apiKey}`;
+      }
     }
 
     try {
       response = await fetch(endpoint, {
         method: "POST",
-        headers,
+        headers: fetchHeaders,
         body: JSON.stringify({
           model: modelName || undefined,
           messages,
