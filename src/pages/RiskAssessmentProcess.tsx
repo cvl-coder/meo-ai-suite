@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken } from "@/lib/meoToken";
-import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles } from "lucide-react";
+import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles, Save } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 type AnswerOption = {
@@ -63,6 +63,8 @@ export default function RiskAssessmentProcess() {
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [streamedSummary, setStreamedSummary] = useState("");
   const [generatingNoteFor, setGeneratingNoteFor] = useState<string | null>(null);
+  const [savingAnswerFor, setSavingAnswerFor] = useState<string | null>(null);
+  const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
 
   // Load questions, answer options, session, and settings
   useEffect(() => {
