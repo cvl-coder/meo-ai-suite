@@ -569,9 +569,10 @@ export default function AiAdmin() {
         });
 
         const riskAssessmentCount = Array.isArray(riskAssessmentData?.data) ? riskAssessmentData.data.length : 0;
+        const entityCount = entityRiskResults.length;
         toast({
           title: "Search completed",
-          description: `Used ${riskAssessmentCount} risk assessment${riskAssessmentCount === 1 ? "" : "s"} from the selected case.`,
+          description: `Used ${riskAssessmentCount} case risk assessment${riskAssessmentCount === 1 ? "" : "s"} + ${entityCount} entity risk assessment source${entityCount === 1 ? "" : "s"}.`,
         });
       } else {
         // JSON error response
