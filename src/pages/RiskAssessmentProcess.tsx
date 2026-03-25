@@ -95,15 +95,35 @@ export default function RiskAssessmentProcess() {
         }
         const answerMap: Record<string, Answer> = {};
         ((answersRes.data as any[]) || []).forEach((a) => {
-          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "", selected_option_label: a.notes?.startsWith("[") ? undefined : undefined };
+          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "" };
         });
         
-        // Reconstruct selected_option_label from score + options
+        // Reconstruct selected options from score + options
+        const loadedQuestions = (questionsRes.data as any[]) || [];
         for (const qId of Object.keys(answerMap)) {
           const opts = optMap[qId];
+          const q = loadedQuestions.find((qq: any) => qq.id === qId);
           if (opts?.length) {
-            const matchingOpt = opts.find(o => o.score === answerMap[qId].score);
-            if (matchingOpt) answerMap[qId].selected_option_label = matchingOpt.label;
+            if (q?.question_type === "multi_select") {
+              // For multi-select, find combination of options that sum to the score
+              // Simple approach: try all options and find those selected
+              const selectedLabels: string[] = [];
+              let remaining = answerMap[qId].score;
+              for (const o of [...opts].sort((a, b) => b.score - a.score)) {
+                if (remaining >= o.score && o.score > 0) {
+                  selectedLabels.push(o.label);
+                  remaining -= o.score;
+                }
+              }
+              answerMap[qId].selected_option_labels = selectedLabels;
+              answerMap[qId].selected_option_label = selectedLabels.join(", ");
+            } else {
+              const matchingOpt = opts.find(o => o.score === answerMap[qId].score);
+              if (matchingOpt) {
+                answerMap[qId].selected_option_label = matchingOpt.label;
+                answerMap[qId].selected_option_labels = [matchingOpt.label];
+              }
+            }
           }
         }
         
