@@ -98,7 +98,18 @@ export default function ApiTest() {
 
   const userId = useMemo(() => localStorage.getItem("meo_user_id") || "", []);
 
+  const actionsRequiringEntityId = ["getEntityRiskAssessments", "getEntityCustomProperties", "getEntityUserdata", "updateEntity", "setEntityCustomProperties"];
+  const actionsRequiringCaseId = ["getCase", "getRiskAssessments", "getCheckData", "getCheckIdentities", "createEntities"];
+
   const invokeAction = async (action: string, payload: Record<string, any>) => {
+    if (actionsRequiringEntityId.includes(action) && !payload.entityId) {
+      toast({ title: "Missing Entity ID", description: "Please enter an Entity ID before running this action.", variant: "destructive" });
+      return;
+    }
+    if (actionsRequiringCaseId.includes(action) && !payload.caseId) {
+      toast({ title: "Missing Case ID", description: "Please enter a Case ID before running this action.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     setResult(null);
     try {
