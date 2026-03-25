@@ -139,12 +139,19 @@ export default function ApiTest() {
     setLoadingEntities(true);
     try {
       const { data, error } = await supabase.functions.invoke("meo-api-test", {
-        body: { action: "getCaseEntities", payload: { caseId, customerId, personToken } },
+        body: { action: "getCase", payload: { caseId, customerId, personToken } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const entities = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-      const mapped = entities.map((e: any) => ({ id: e.id || e.entityId, name: e.name || e.relationsIdentifier || "Unnamed", type: e.type || "Unknown" }));
+      const caseData = data?.data || data;
+      const individuals = Array.isArray(caseData?.individuals) ? caseData.individuals : [];
+      const companies = Array.isArray(caseData?.affiliatedCompanies) ? caseData.affiliatedCompanies : [];
+      const allEntities = [...individuals, ...companies];
+      const mapped = allEntities.map((e: any) => ({
+        id: e.id || e.entityId,
+        name: e.name || e.relationsIdentifier || "Unnamed",
+        type: e.type || (individuals.includes(e) ? "Individual" : "Company"),
+      })).filter((e) => e.id);
       setCaseEntities(mapped);
       if (mapped.length > 0 && !entityId) setEntityId(mapped[0].id);
       if (mapped.length === 0) toast({ title: "No entities", description: "No entities found for this case." });
