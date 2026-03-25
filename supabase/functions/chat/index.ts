@@ -27,7 +27,7 @@ serve(async (req) => {
         baseUrl += "/chat/completions";
       }
       endpoint = baseUrl;
-      apiKey = custom_api_key || Deno.env.get("MEO_API_KEY") || "";
+      apiKey = custom_api_key || Deno.env.get("MEO_AI_API_KEY") || Deno.env.get("MEO_API_KEY") || "";
       modelName = model || "";
     } else {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -49,8 +49,9 @@ serve(async (req) => {
     };
     
     if (apiKey) {
-      // Use X-API-Key for MEO endpoints, Bearer token for others
+      // For MEO endpoints, send both header styles to cover nginx proxy + app auth
       if (endpoint.includes("meo.io")) {
+        fetchHeaders["Authorization"] = `Bearer ${apiKey}`;
         fetchHeaders["X-API-Key"] = apiKey;
       } else {
         fetchHeaders["Authorization"] = `Bearer ${apiKey}`;
