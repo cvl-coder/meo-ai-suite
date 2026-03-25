@@ -451,10 +451,22 @@ export default function RiskAssessmentAdmin() {
               <Label>Description</Label>
               <Textarea value={formData.description} onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))} placeholder="Help text for the assessor..." className="h-16" />
             </div>
-            <div className="grid gap-4 grid-cols-2">
+            <div className="grid gap-4 grid-cols-3">
               <div className="space-y-2">
                 <Label>Category</Label>
                 <Input value={formData.category} onChange={(e) => setFormData((p) => ({ ...p, category: e.target.value }))} placeholder="e.g. KYC, PEP, Sanctions" />
+              </div>
+              <div className="space-y-2">
+                <Label>Answer Type</Label>
+                <Select value={formData.question_type} onValueChange={(v) => setFormData((p) => ({ ...p, question_type: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single_select">Single Select</SelectItem>
+                    <SelectItem value="multi_select">Multi Select</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Weight Multiplier</Label>
@@ -492,6 +504,9 @@ export default function RiskAssessmentAdmin() {
               {answerOptions.length === 0 ? (
                 <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
                   No answer options defined. Users will see a slider (0 to max score) instead.
+                  {formData.question_type === "multi_select" && (
+                    <p className="mt-1 text-xs font-medium text-primary">Multi-select: the score will be the sum of all selected options.</p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
