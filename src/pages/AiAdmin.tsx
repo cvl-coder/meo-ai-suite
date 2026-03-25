@@ -633,7 +633,7 @@ export default function AiAdmin() {
           </div>
         ) : (
           <div className="space-y-6">
-            {functions.map((fn) => {
+            {functions.filter((fn) => fn.id !== "c0b2de3e-0bb0-459d-a1da-1947d2ab9862").map((fn) => {
               const Icon = iconMap[fn.icon || "search"] || Search;
               const isExpanded = expandedId === fn.id;
               const config = configMap[fn.id];

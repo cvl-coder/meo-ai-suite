@@ -11,6 +11,7 @@ import AiTestData from "./pages/AiTestData";
 import Integration from "./pages/Integration";
 import ChatPlayground from "./pages/ChatPlayground";
 import ApiTest from "./pages/ApiTest";
+import RiskAssessment from "./pages/RiskAssessment";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/ai-admin/test-data" element={guarded(<AiTestData />)} />
             <Route path="/integration" element={guarded(<Integration />)} />
             <Route path="/chat" element={guarded(<ChatPlayground />)} />
+            <Route path="/risk-assessment" element={guarded(<RiskAssessment />)} />
             <Route path="/api-test" element={guarded(<ApiTest />)} />
             <Route path="*" element={<NotFound />} />
           </Routes>
