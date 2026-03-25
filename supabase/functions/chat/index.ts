@@ -27,7 +27,8 @@ serve(async (req) => {
         baseUrl += "/chat/completions";
       }
       endpoint = baseUrl;
-      apiKey = custom_api_key || "";
+      // Use provided key, or fall back to MEO_API_KEY for core.meo.io
+      apiKey = custom_api_key || Deno.env.get("MEO_API_KEY") || "";
       modelName = model || "";
     } else {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
