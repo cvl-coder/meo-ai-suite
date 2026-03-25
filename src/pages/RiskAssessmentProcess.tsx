@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken } from "@/lib/meoToken";
-import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles } from "lucide-react";
+import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles, Save } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 type AnswerOption = {
@@ -63,6 +63,8 @@ export default function RiskAssessmentProcess() {
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [streamedSummary, setStreamedSummary] = useState("");
   const [generatingNoteFor, setGeneratingNoteFor] = useState<string | null>(null);
+  const [savingAnswerFor, setSavingAnswerFor] = useState<string | null>(null);
+  const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
 
   // Load questions, answer options, session, and settings
   useEffect(() => {
@@ -410,6 +412,57 @@ export default function RiskAssessmentProcess() {
     setGeneratingSummary(false);
   };
 
+  const saveAnswer = async (questionId: string) => {
+    setSavingAnswerFor(questionId);
+    try {
+      const answer = getAnswer(questionId);
+      let currentSessionId = sessionId;
+
+      // Create session if it doesn't exist yet
+      if (!currentSessionId) {
+        const { totalScore, maxPossible } = calculateScores();
+        const percentage = maxPossible > 0 ? (totalScore / maxPossible) * 100 : 0;
+        const riskLevel = getRiskLevel(percentage);
+
+        const { data: newSession, error } = await supabase
+          .from("risk_assessment_sessions")
+          .insert({
+            customer_id: localStorage.getItem("selectedCustomerId") || "",
+            case_id: localStorage.getItem(`meo_case_id:${localStorage.getItem("selectedCustomerId")}`) || "",
+            total_score: totalScore,
+            max_possible_score: maxPossible,
+            risk_level: riskLevel,
+            status: "in_progress",
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        currentSessionId = (newSession as any).id;
+        setSession(newSession);
+        navigate(`/risk-assessment/process/${currentSessionId}`, { replace: true });
+      }
+
+      // Upsert the single answer
+      await supabase.from("risk_assessment_answers").delete()
+        .eq("session_id", currentSessionId!)
+        .eq("question_id", questionId);
+
+      await supabase.from("risk_assessment_answers").insert({
+        session_id: currentSessionId!,
+        question_id: questionId,
+        score: answer.score,
+        notes: answer.notes,
+      });
+
+      setSavedAnswers((prev) => new Set(prev).add(questionId));
+      toast({ title: "Answer saved" });
+    } catch (err: any) {
+      toast({ title: "Error saving answer", description: err.message, variant: "destructive" });
+    }
+    setSavingAnswerFor(null);
+  };
+
   const handleSubmit = async () => {
     setSaving(true);
     try {
@@ -694,6 +747,16 @@ export default function RiskAssessmentProcess() {
                               title="Generate AI note for this question"
                             >
                               {generatingNoteFor === q.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className={`shrink-0 self-start mt-0.5 ${savedAnswers.has(q.id) ? "text-green-600 border-green-300" : ""}`}
+                              disabled={savingAnswerFor === q.id}
+                              onClick={() => saveAnswer(q.id)}
+                              title="Save this answer"
+                            >
+                              {savingAnswerFor === q.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             </Button>
                           </div>
                         </CardContent>
