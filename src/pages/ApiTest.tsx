@@ -438,8 +438,27 @@ export default function ApiTest() {
                     <Input value={caseId} onChange={(e) => setCaseId(e.target.value)} placeholder="Case ID" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Entity ID</Label>
-                    <Input value={entityId} onChange={(e) => setEntityId(e.target.value)} placeholder="Entity ID" />
+                    <div className="flex items-center justify-between">
+                      <Label>Entity ID</Label>
+                      <Button variant="ghost" size="sm" disabled={loadingEntities || !caseId} onClick={fetchCaseEntities}>
+                        {loadingEntities ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        <span className="ml-1 text-xs">Fetch</span>
+                      </Button>
+                    </div>
+                    {caseEntities.length > 0 ? (
+                      <Select value={entityId} onValueChange={setEntityId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select entity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {caseEntities.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>{e.name} ({e.type}) — {e.id.slice(0, 8)}…</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={entityId} onChange={(e) => setEntityId(e.target.value)} placeholder="Enter Entity ID or click Fetch" />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Data ID</Label>
