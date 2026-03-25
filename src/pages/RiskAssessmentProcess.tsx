@@ -203,9 +203,14 @@ export default function RiskAssessmentProcess() {
       const selectedLabel = currentAnswer.selected_option_label || "(no selection)";
 
       const systemMessage =
-        `You are a risk assessment analyst. You write concise, professional risk analysis notes (2-4 sentences). ` +
-        `Do NOT repeat or echo the input data, scores, or question text back. Just provide your analysis. ` +
-        `IMPORTANT: Always write your response in ${outputLang}.`;
+        `You are a senior AML/KYC compliance analyst writing internal risk assessment notes. ` +
+        `Rules:\n` +
+        `- Write exactly 2-4 sentences of professional risk analysis.\n` +
+        `- Do NOT repeat the question, score, or selected answer back.\n` +
+        `- Do NOT mix languages. Write ENTIRELY in ${outputLang} — every single word.\n` +
+        `- Use proper ${outputLang} grammar and spelling. If ${outputLang} is "Danish", write only Danish (not Norwegian, Swedish, or any other language).\n` +
+        `- Base your analysis strictly on the provided factual context.\n` +
+        `- Focus on the risk implications of the selected answer.`;
 
       const questionDescription = question.description || "";
 
