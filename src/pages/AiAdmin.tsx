@@ -283,14 +283,64 @@ export default function AiAdmin() {
   const handleWorkspaceChange = async (customerId: string) => {
     setSelectedCustomerId(customerId);
     localStorage.setItem("selectedCustomerId", customerId);
+    setCaseEntities([]);
+    setSelectedEntityIds([]);
     await loadCasesForWorkspace(customerId);
   };
 
+  const fetchEntitiesForCase = useCallback(async (caseIdToFetch: string) => {
+    if (!caseIdToFetch || !selectedCustomerId || !meoToken) {
+      setCaseEntities([]);
+      setSelectedEntityIds([]);
+      return;
+    }
+    setLoadingEntities(true);
+    try {
+      const data = await invokeMeoAction("getCase", {
+        caseId: caseIdToFetch,
+        customerId: selectedCustomerId,
+        personToken: meoToken,
+      });
+      const caseData = data?.data || data;
+      const individuals = Array.isArray(caseData?.individuals) ? caseData.individuals : [];
+      const companies = Array.isArray(caseData?.affiliatedCompanies) ? caseData.affiliatedCompanies : [];
+      const allEntities = [...individuals, ...companies];
+      const mapped: EntityOption[] = allEntities
+        .map((e: any) => ({
+          id: e.id || e.entityId,
+          name: e.name || e.relationsIdentifier || "Unnamed",
+          type: e.type || (individuals.includes(e) ? "Individual" : "Company"),
+        }))
+        .filter((e) => e.id);
+      setCaseEntities(mapped);
+      setSelectedEntityIds(mapped.map((e) => e.id)); // select all by default
+    } catch {
+      setCaseEntities([]);
+      setSelectedEntityIds([]);
+    } finally {
+      setLoadingEntities(false);
+    }
+  }, [invokeMeoAction, meoToken, selectedCustomerId]);
+
   const handleCaseChange = (caseId: string) => {
     setSelectedCaseId(caseId);
-
     if (selectedCustomerId) {
       localStorage.setItem(`meo_case_id:${selectedCustomerId}`, caseId);
+    }
+    void fetchEntitiesForCase(caseId);
+  };
+
+  const toggleEntitySelection = (entityId: string) => {
+    setSelectedEntityIds((prev) =>
+      prev.includes(entityId) ? prev.filter((id) => id !== entityId) : [...prev, entityId]
+    );
+  };
+
+  const toggleAllEntities = () => {
+    if (selectedEntityIds.length === caseEntities.length) {
+      setSelectedEntityIds([]);
+    } else {
+      setSelectedEntityIds(caseEntities.map((e) => e.id));
     }
   };
 
