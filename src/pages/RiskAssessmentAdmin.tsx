@@ -161,9 +161,11 @@ export default function RiskAssessmentAdmin() {
     }
     setSavingQuestion(true);
 
-    // Derive max_score from answer options if they exist
+    // Derive max_score: for multi_select sum all scores, for single_select take highest
     const derivedMaxScore = answerOptions.length > 0
-      ? Math.max(...answerOptions.map((o) => o.score), 0)
+      ? (formData.question_type === "multi_select"
+        ? answerOptions.reduce((sum, o) => sum + o.score, 0)
+        : Math.max(...answerOptions.map((o) => o.score), 0))
       : formData.max_score;
 
     const questionPayload = { ...formData, max_score: derivedMaxScore };
