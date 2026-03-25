@@ -21,6 +21,7 @@ type Question = {
   max_score: number;
   weight: number;
   sort_order: number;
+  ai_prompt_template: string;
 };
 
 type Answer = {
@@ -49,6 +50,7 @@ export default function RiskAssessmentProcess() {
   const [settings, setSettings] = useState<any>(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [streamedSummary, setStreamedSummary] = useState("");
+  const [generatingNoteFor, setGeneratingNoteFor] = useState<string | null>(null);
 
   // Load questions, session, and settings
   useEffect(() => {
@@ -114,6 +116,83 @@ export default function RiskAssessmentProcess() {
     },
     [settings]
   );
+
+  const generateNoteForQuestion = async (question: Question) => {
+    setGeneratingNoteFor(question.id);
+    try {
+      const allAnswersContext = questions.map((q) => {
+        const a = getAnswer(q.id);
+        return { question: q.question_text, category: q.category, score: a.score, maxScore: q.max_score, weight: q.weight, notes: a.notes || "" };
+      });
+
+      const currentAnswer = getAnswer(question.id);
+      const defaultPrompt = 
+        "You are a risk assessment analyst. Based on the following risk question and assessment context, write a concise risk analysis note (2-4 sentences) for this specific question.\n\n" +
+        "Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\nAll assessment answers for context:\n{{all_answers}}\n\n" +
+        "Write a brief, professional note analyzing the risk factor for this specific question.";
+
+      const prompt = (question.ai_prompt_template || defaultPrompt)
+        .replace(/\{\{question\}\}/g, question.question_text)
+        .replace(/\{\{score\}\}/g, String(currentAnswer.score))
+        .replace(/\{\{max_score\}\}/g, String(question.max_score))
+        .replace(/\{\{all_answers\}\}/g, JSON.stringify(allAnswersContext, null, 2));
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const authSession = (await supabase.auth.getSession()).data.session;
+
+      const provider = settings?.ai_endpoint_url ? "custom" : "lovable";
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseKey,
+          Authorization: `Bearer ${authSession?.access_token || supabaseKey}`,
+        },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: prompt }],
+          model: settings?.ai_model || "google/gemini-3-flash-preview",
+          provider,
+          custom_endpoint: settings?.ai_endpoint_url || undefined,
+          custom_api_key: settings?.ai_api_key || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`AI error (${response.status}): ${errText.substring(0, 200)}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+      const decoder = new TextDecoder();
+      let buffer = "", fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith("data: ")) continue;
+          const d = t.slice(6);
+          if (d === "[DONE]") continue;
+          try {
+            const p = JSON.parse(d);
+            const delta = p.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullText += delta;
+              updateAnswer(question.id, { notes: fullText });
+            }
+          } catch {}
+        }
+      }
+    } catch (err: any) {
+      toast({ title: "Error generating note", description: err.message, variant: "destructive" });
+    }
+    setGeneratingNoteFor(null);
+  };
 
   const generateAiSummary = async () => {
     if (!session?.id) return;
@@ -475,12 +554,24 @@ export default function RiskAssessmentProcess() {
                             onValueChange={([val]) => updateAnswer(q.id, { score: val })}
                           />
 
-                          <Textarea
-                            placeholder="Notes (optional)..."
-                            value={answer.notes}
-                            onChange={(e) => updateAnswer(q.id, { notes: e.target.value })}
-                            className="h-16 text-sm"
-                          />
+                          <div className="flex items-center gap-2">
+                            <Textarea
+                              placeholder="Notes (optional)..."
+                              value={answer.notes}
+                              onChange={(e) => updateAnswer(q.id, { notes: e.target.value })}
+                              className="h-16 text-sm flex-1"
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="shrink-0 self-start mt-0.5"
+                              disabled={generatingNoteFor === q.id}
+                              onClick={() => generateNoteForQuestion(q)}
+                              title="Generate AI note for this question"
+                            >
+                              {generatingNoteFor === q.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
                     );
