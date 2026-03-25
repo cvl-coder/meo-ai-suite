@@ -171,6 +171,168 @@ export type Database = {
           },
         ]
       }
+      risk_assessment_answers: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          question_id: string
+          score: number
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          question_id: string
+          score?: number
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          question_id?: string
+          score?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_assessment_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "risk_assessment_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_assessment_answers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "risk_assessment_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      risk_assessment_questions: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          max_score: number
+          question_text: string
+          sort_order: number
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          max_score?: number
+          question_text: string
+          sort_order?: number
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          max_score?: number
+          question_text?: string
+          sort_order?: number
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      risk_assessment_sessions: {
+        Row: {
+          ai_summary: string | null
+          case_id: string
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          max_possible_score: number
+          risk_level: string
+          status: string
+          total_score: number
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          case_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          max_possible_score?: number
+          risk_level?: string
+          status?: string
+          total_score?: number
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          case_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          max_possible_score?: number
+          risk_level?: string
+          status?: string
+          total_score?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      risk_assessment_settings: {
+        Row: {
+          ai_api_key: string
+          ai_endpoint_url: string
+          ai_model: string
+          ai_prompt_template: string
+          data_sources: Json
+          id: string
+          low_threshold: number
+          medium_threshold: number
+          output_language: string
+          updated_at: string
+        }
+        Insert: {
+          ai_api_key?: string
+          ai_endpoint_url?: string
+          ai_model?: string
+          ai_prompt_template?: string
+          data_sources?: Json
+          id?: string
+          low_threshold?: number
+          medium_threshold?: number
+          output_language?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_api_key?: string
+          ai_endpoint_url?: string
+          ai_model?: string
+          ai_prompt_template?: string
+          data_sources?: Json
+          id?: string
+          low_threshold?: number
+          medium_threshold?: number
+          output_language?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       ai_search_configs_safe: {
