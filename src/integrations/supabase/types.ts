@@ -258,6 +258,7 @@ export type Database = {
           id: string
           max_score: number
           question_text: string
+          question_type: string
           sort_order: number
           updated_at: string
           weight: number
@@ -271,6 +272,7 @@ export type Database = {
           id?: string
           max_score?: number
           question_text: string
+          question_type?: string
           sort_order?: number
           updated_at?: string
           weight?: number
@@ -284,6 +286,7 @@ export type Database = {
           id?: string
           max_score?: number
           question_text?: string
+          question_type?: string
           sort_order?: number
           updated_at?: string
           weight?: number
