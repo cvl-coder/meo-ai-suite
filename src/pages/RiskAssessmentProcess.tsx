@@ -47,6 +47,8 @@ export default function RiskAssessmentProcess() {
   const [showConclusion, setShowConclusion] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [streamedSummary, setStreamedSummary] = useState("");
 
   // Load questions, session, and settings
   useEffect(() => {
