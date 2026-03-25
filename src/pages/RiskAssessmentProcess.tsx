@@ -141,7 +141,7 @@ export default function RiskAssessmentProcess() {
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const authSession = (await supabase.auth.getSession()).data.session;
 
-      const provider = settings?.ai_endpoint_url ? "custom" : "lovable";
+      const provider = "custom";
       const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
         method: "POST",
         headers: {
@@ -151,10 +151,10 @@ export default function RiskAssessmentProcess() {
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: prompt }],
-          model: settings?.ai_model || "google/gemini-3-flash-preview",
+          model: settings?.ai_model || "llama3.1:latest",
           provider,
-          custom_endpoint: settings?.ai_endpoint_url || undefined,
-          custom_api_key: settings?.ai_api_key || undefined,
+          custom_endpoint: settings?.ai_endpoint_url || "http://core.meo.io/v1",
+          custom_api_key: settings?.ai_api_key || "",
         }),
       });
 
@@ -259,7 +259,7 @@ export default function RiskAssessmentProcess() {
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const authSession = (await supabase.auth.getSession()).data.session;
 
-      const provider = settings?.ai_endpoint_url ? "custom" : "lovable";
+      const provider = "custom";
       const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
         method: "POST",
         headers: {
@@ -269,10 +269,10 @@ export default function RiskAssessmentProcess() {
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: prompt }],
-          model: settings?.ai_model || "google/gemini-3-flash-preview",
+          model: settings?.ai_model || "llama3.1:latest",
           provider,
-          custom_endpoint: settings?.ai_endpoint_url || undefined,
-          custom_api_key: settings?.ai_api_key || undefined,
+          custom_endpoint: settings?.ai_endpoint_url || "http://core.meo.io/v1",
+          custom_api_key: settings?.ai_api_key || "",
         }),
       });
 
