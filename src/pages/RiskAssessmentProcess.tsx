@@ -125,8 +125,29 @@ export default function RiskAssessmentProcess() {
     }));
   };
 
-  const selectAnswerOption = (questionId: string, option: AnswerOption) => {
-    updateAnswer(questionId, { score: option.score, selected_option_label: option.label });
+  const selectAnswerOption = (question: Question, option: AnswerOption) => {
+    if (question.question_type === "multi_select") {
+      const current = getAnswer(question.id);
+      const currentLabels = current.selected_option_labels || [];
+      const isSelected = currentLabels.includes(option.label);
+      const newLabels = isSelected
+        ? currentLabels.filter((l) => l !== option.label)
+        : [...currentLabels, option.label];
+      
+      // Sum scores of all selected options
+      const options = answerOptionsByQuestion[question.id] || [];
+      const newScore = options
+        .filter((o) => newLabels.includes(o.label))
+        .reduce((sum, o) => sum + o.score, 0);
+      
+      updateAnswer(question.id, {
+        score: newScore,
+        selected_option_labels: newLabels,
+        selected_option_label: newLabels.join(", "),
+      });
+    } else {
+      updateAnswer(question.id, { score: option.score, selected_option_label: option.label, selected_option_labels: [option.label] });
+    }
   };
 
   const calculateScores = useCallback(() => {
