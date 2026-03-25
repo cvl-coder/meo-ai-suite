@@ -1,11 +1,12 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Brain, Plug, Database, MessageSquare, LogOut, FlaskConical } from "lucide-react";
+import { Brain, Plug, Database, MessageSquare, LogOut, FlaskConical, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
+  { href: "/risk-assessment", label: "Risk Assessment", icon: ShieldCheck },
   { href: "/ai-admin", label: "AI Functions", icon: Brain },
   { href: "/ai-admin/test-data", label: "Test Data", icon: Database },
   { href: "/integration", label: "Integration", icon: Plug },
