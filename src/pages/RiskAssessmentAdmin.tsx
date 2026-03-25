@@ -23,6 +23,7 @@ type Question = {
   weight: number;
   sort_order: number;
   enabled: boolean;
+  ai_prompt_template: string;
 };
 
 type SettingsData = {
@@ -60,6 +61,7 @@ export default function RiskAssessmentAdmin() {
     weight: 1.0,
     sort_order: 0,
     enabled: true,
+    ai_prompt_template: "",
   });
   const [savingQuestion, setSavingQuestion] = useState(false);
 
@@ -107,13 +109,13 @@ export default function RiskAssessmentAdmin() {
 
   const openAddDialog = () => {
     setEditingQuestion(null);
-    setFormData({ category: "", question_text: "", description: "", max_score: 5, weight: 1.0, sort_order: questions.length, enabled: true });
+    setFormData({ category: "", question_text: "", description: "", max_score: 5, weight: 1.0, sort_order: questions.length, enabled: true, ai_prompt_template: "" });
     setShowAddDialog(true);
   };
 
   const openEditDialog = (q: Question) => {
     setEditingQuestion(q);
-    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, weight: q.weight, sort_order: q.sort_order, enabled: q.enabled });
+    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, weight: q.weight, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "" });
     setShowAddDialog(true);
   };
 
@@ -393,6 +395,18 @@ export default function RiskAssessmentAdmin() {
                 <Label>Sort Order</Label>
                 <Input type="number" value={formData.sort_order} onChange={(e) => setFormData((p) => ({ ...p, sort_order: Number(e.target.value) }))} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>AI Prompt Template</Label>
+              <Textarea
+                value={formData.ai_prompt_template}
+                onChange={(e) => setFormData((p) => ({ ...p, ai_prompt_template: e.target.value }))}
+                placeholder="Custom AI prompt for generating notes for this question. Use {{question}}, {{score}}, {{max_score}}, {{all_answers}} variables..."
+                className="h-24 font-mono text-xs"
+              />
+              <p className="text-xs text-muted-foreground">
+                Available: <code className="bg-muted px-1 rounded">{"{{question}}"}</code>, <code className="bg-muted px-1 rounded">{"{{score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{max_score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{all_answers}}"}</code>
+              </p>
             </div>
           </div>
           <DialogFooter>
