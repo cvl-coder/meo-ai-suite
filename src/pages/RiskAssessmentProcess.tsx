@@ -372,16 +372,38 @@ export default function RiskAssessmentProcess() {
             </CardContent>
           </Card>
 
-          {session?.ai_summary && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">AI Summary</CardTitle></CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">AI Summary</CardTitle>
+                <Button
+                  size="sm"
+                  onClick={generateAiSummary}
+                  disabled={generatingSummary}
+                  className="gap-2"
+                >
+                  {generatingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {generatingSummary ? "Generating..." : session?.ai_summary ? "Regenerate" : "Generate Summary"}
+                </Button>
+              </div>
+              <CardDescription>
+                Uses your scored answers combined with the case risk assessment data from MEO.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(generatingSummary && streamedSummary) || session?.ai_summary ? (
                 <div className="prose prose-sm max-w-none text-foreground">
-                  <ReactMarkdown>{session.ai_summary}</ReactMarkdown>
+                  <ReactMarkdown>{generatingSummary ? streamedSummary : session.ai_summary}</ReactMarkdown>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : !generatingSummary ? (
+                <p className="text-sm text-muted-foreground">Click "Generate Summary" to create an AI-powered analysis of this assessment combined with case risk data.</p>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Fetching case risk data and generating summary...
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => { setShowConclusion(false); }}>
