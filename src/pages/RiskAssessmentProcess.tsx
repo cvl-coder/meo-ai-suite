@@ -30,6 +30,7 @@ type Question = {
   weight: number;
   sort_order: number;
   ai_prompt_template: string;
+  question_type: string;
 };
 
 type Answer = {
@@ -37,6 +38,7 @@ type Answer = {
   score: number;
   notes: string;
   selected_option_label?: string;
+  selected_option_labels?: string[];
 };
 
 const riskLevelConfig = {

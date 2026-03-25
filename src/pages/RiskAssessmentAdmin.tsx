@@ -537,7 +537,9 @@ export default function RiskAssessmentAdmin() {
                     </div>
                   ))}
                   <p className="text-xs text-muted-foreground">
-                    Max score will be auto-derived from the highest option score ({Math.max(...answerOptions.map(o => o.score), 0)}).
+                    {formData.question_type === "multi_select"
+                      ? `Max score (sum of all options): ${answerOptions.reduce((s, o) => s + o.score, 0)}`
+                      : `Max score (highest option): ${Math.max(...answerOptions.map(o => o.score), 0)}`}
                   </p>
                 </div>
               )}
