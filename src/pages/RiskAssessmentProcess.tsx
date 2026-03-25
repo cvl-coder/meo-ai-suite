@@ -120,30 +120,24 @@ export default function RiskAssessmentProcess() {
   const generateNoteForQuestion = async (question: Question) => {
     setGeneratingNoteFor(question.id);
     try {
-      const allAnswersSummary = questions.map((q) => {
-        const a = getAnswer(q.id);
-        return `- ${q.question_text} (${q.category}): ${a.score}/${q.max_score}${a.notes ? ` — ${a.notes}` : ""}`;
-      }).join("\n");
-
       const currentAnswer = getAnswer(question.id);
       const outputLang = settings?.output_language || "English";
 
       const systemMessage = 
         `You are a risk assessment analyst. You write concise, professional risk analysis notes (2-4 sentences). ` +
         `Do NOT repeat or echo the input data, scores, or question text back. Just provide your analysis. ` +
-        `IMPORTANT: Always write your response in ${outputLang}.\n\n` +
-        `Context — all current assessment scores:\n${allAnswersSummary}`;
+        `IMPORTANT: Always write your response in ${outputLang}.`;
 
       const defaultUserPrompt = 
         `Write a concise risk analysis note for this question:\n\n` +
         `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
-        `Provide only your professional risk analysis. Do not repeat the input data.`;
+        `Provide only your professional risk analysis.`;
 
       const userPrompt = (question.ai_prompt_template || defaultUserPrompt)
         .replace(/\{\{question\}\}/g, question.question_text)
         .replace(/\{\{score\}\}/g, String(currentAnswer.score))
         .replace(/\{\{max_score\}\}/g, String(question.max_score))
-        .replace(/\{\{all_answers\}\}/g, allAnswersSummary);
+        .replace(/\{\{all_answers\}\}/g, "");
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
