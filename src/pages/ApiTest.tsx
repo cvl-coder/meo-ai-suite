@@ -131,6 +131,31 @@ export default function ApiTest() {
     }
   };
 
+  const fetchCaseEntities = async () => {
+    if (!caseId || !customerId || !personToken) {
+      toast({ title: "Missing fields", description: "Case ID, Customer ID, and Person Token are required.", variant: "destructive" });
+      return;
+    }
+    setLoadingEntities(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("meo-api-test", {
+        body: { action: "getCaseEntities", payload: { caseId, customerId, personToken } },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const entities = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      const mapped = entities.map((e: any) => ({ id: e.id || e.entityId, name: e.name || e.relationsIdentifier || "Unnamed", type: e.type || "Unknown" }));
+      setCaseEntities(mapped);
+      if (mapped.length > 0 && !entityId) setEntityId(mapped[0].id);
+      if (mapped.length === 0) toast({ title: "No entities", description: "No entities found for this case." });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch entities";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setLoadingEntities(false);
+    }
+  };
+
   const loadCaseForCustomer = useCallback(async (nextCustomerId: string, nextPersonToken: string) => {
     if (!nextCustomerId || !nextPersonToken) return;
 
