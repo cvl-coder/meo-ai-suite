@@ -126,10 +126,11 @@ export default function RiskAssessmentProcess() {
       });
 
       const currentAnswer = getAnswer(question.id);
+      const outputLang = settings?.output_language || "English";
       const defaultPrompt = 
-        "You are a risk assessment analyst. Based on the following risk question and assessment context, write a concise risk analysis note (2-4 sentences) for this specific question.\n\n" +
-        "Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\nAll assessment answers for context:\n{{all_answers}}\n\n" +
-        "Write a brief, professional note analyzing the risk factor for this specific question.";
+        `You are a risk assessment analyst. Based on the following risk question and assessment context, write a concise risk analysis note (2-4 sentences) for this specific question.\n\n` +
+        `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\nAll assessment answers for context:\n{{all_answers}}\n\n` +
+        `Write a brief, professional note analyzing the risk factor for this specific question. IMPORTANT: Write your response in ${outputLang}.`;
 
       const prompt = (question.ai_prompt_template || defaultPrompt)
         .replace(/\{\{question\}\}/g, question.question_text)
@@ -233,13 +234,13 @@ export default function RiskAssessmentProcess() {
       const { totalScore: ts, maxPossible: mp } = calculateScores();
       const pct = mp > 0 ? (ts / mp) * 100 : 0;
 
-      // Build prompt
+      const summaryLang = settings?.output_language || "English";
       const promptTemplate = settings?.ai_prompt_template || 
         "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.\n\n" +
         "## Internal Risk Assessment Scores\n{{scored_answers}}\n\n" +
         "## Overall Result\nTotal Score: {{total_score}} / {{max_score}} ({{percentage}}%)\nRisk Level: {{risk_level}}\n\n" +
         "{{case_risk_section}}" +
-        "Provide a clear summary of the risk factors, highlighting the most significant findings and recommendations.";
+        `Provide a clear summary of the risk factors, highlighting the most significant findings and recommendations. IMPORTANT: Write your entire response in ${summaryLang}.`;
 
       const caseRiskSection = caseRiskData
         ? `## Case Risk Assessment Data (from MEO)\n${JSON.stringify(caseRiskData, null, 2)}\n\n`
