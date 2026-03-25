@@ -215,6 +215,7 @@ export type Database = {
       }
       risk_assessment_questions: {
         Row: {
+          ai_prompt_template: string
           category: string
           created_at: string
           description: string | null
@@ -227,6 +228,7 @@ export type Database = {
           weight: number
         }
         Insert: {
+          ai_prompt_template?: string
           category?: string
           created_at?: string
           description?: string | null
@@ -239,6 +241,7 @@ export type Database = {
           weight?: number
         }
         Update: {
+          ai_prompt_template?: string
           category?: string
           created_at?: string
           description?: string | null
