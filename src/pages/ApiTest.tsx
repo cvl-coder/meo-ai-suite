@@ -51,6 +51,8 @@ export default function ApiTest() {
   const [dataId, setDataId] = useState("");
   const [caseId, setCaseId] = useState("");
   const [entityId, setEntityId] = useState("");
+  const [caseEntities, setCaseEntities] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
   const [checkId, setCheckId] = useState("");
   const [copied, setCopied] = useState(false);
   const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>([]);

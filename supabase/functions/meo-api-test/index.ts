@@ -434,6 +434,19 @@ async function handleAction(action: string, payload: Record<string, any>) {
         },
       });
     }
+    case "getCaseEntities": {
+      requireFields(payload, ["personToken", "customerId", "caseId"]);
+      const page = payload.page || 1;
+      const limit = payload.limit || 100;
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      return meoRest(`${MEO_REST_BASE}/cases/${payload.caseId}/entities?${params.toString()}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${payload.personToken}`,
+          "X-Customer-Id": payload.customerId,
+        },
+      });
+    }
     case "getCase": {
       requireFields(payload, ["personToken", "customerId", "caseId"]);
       return meoRest(`${MEO_REST_BASE}/cases/${payload.caseId}`, {
