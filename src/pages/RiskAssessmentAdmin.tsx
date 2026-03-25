@@ -416,15 +416,15 @@ export default function RiskAssessmentAdmin() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm">Prompt Template</Label>
+                  <Label className="text-sm">Global System Prompt</Label>
                   <Textarea
                     value={settings?.ai_prompt_template ?? ""}
                     onChange={(e) => settings && setSettings({ ...settings, ai_prompt_template: e.target.value })}
-                    placeholder="Use {{scores}} and {{risk_text}} variables..."
+                    placeholder="e.g. You are a senior AML/KYC compliance analyst writing internal risk assessment notes for a Danish financial institution..."
                     className="h-32 font-mono text-xs"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Available: <code className="bg-muted px-1 rounded">{"{{scores}}"}</code>, <code className="bg-muted px-1 rounded">{"{{risk_text}}"}</code>, <code className="bg-muted px-1 rounded">{"{{risk_level}}"}</code>
+                    Sets the AI persona and context for all question-level note generation. Per-question instructions can be added on each question.
                   </p>
                 </div>
               </CardContent>
@@ -546,15 +546,15 @@ export default function RiskAssessmentAdmin() {
             </div>
 
             <div className="space-y-2">
-              <Label>AI Prompt Template</Label>
+              <Label>Question-Specific AI Instructions</Label>
               <Textarea
                 value={formData.ai_prompt_template}
                 onChange={(e) => setFormData((p) => ({ ...p, ai_prompt_template: e.target.value }))}
-                placeholder="Custom AI prompt for generating notes for this question. Use {{question}}, {{score}}, {{max_score}}, {{selected_answer}}, {{all_answers}} variables..."
+                placeholder="e.g. Pay special attention to indirect PEP connections. Consider both domestic and foreign exposure..."
                 className="h-24 font-mono text-xs"
               />
               <p className="text-xs text-muted-foreground">
-                Available: <code className="bg-muted px-1 rounded">{"{{question}}"}</code>, <code className="bg-muted px-1 rounded">{"{{description}}"}</code>, <code className="bg-muted px-1 rounded">{"{{score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{max_score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{selected_answer}}"}</code>, <code className="bg-muted px-1 rounded">{"{{all_answers}}"}</code>
+                Optional. Appended to the global system prompt as additional instructions specific to this question.
               </p>
             </div>
           </div>
