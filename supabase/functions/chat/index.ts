@@ -60,7 +60,7 @@ serve(async (req) => {
     try {
       response = await fetch(endpoint, {
         method: "POST",
-        headers,
+        headers: fetchHeaders,
         body: JSON.stringify({
           model: modelName || undefined,
           messages,
