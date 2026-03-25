@@ -1,0 +1,363 @@
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+
+type Question = {
+  id: string;
+  category: string;
+  question_text: string;
+  description: string;
+  max_score: number;
+  weight: number;
+  sort_order: number;
+};
+
+type Answer = {
+  question_id: string;
+  score: number;
+  notes: string;
+};
+
+const riskLevelConfig = {
+  low: { label: "Low Risk", color: "text-green-600", bg: "bg-green-50 border-green-200", icon: CheckCircle2 },
+  medium: { label: "Medium Risk", color: "text-yellow-600", bg: "bg-yellow-50 border-yellow-200", icon: AlertTriangle },
+  high: { label: "High Risk", color: "text-red-600", bg: "bg-red-50 border-red-200", icon: XCircle },
+  pending: { label: "Pending", color: "text-muted-foreground", bg: "bg-muted border-border", icon: ShieldCheck },
+};
+
+export default function RiskAssessmentProcess() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
+
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showConclusion, setShowConclusion] = useState(false);
+  const [session, setSession] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(null);
+
+  // Load questions, session, and settings
+  useEffect(() => {
+    (async () => {
+      const [questionsRes, settingsRes] = await Promise.all([
+        supabase.from("risk_assessment_questions").select("*").eq("enabled", true).order("sort_order"),
+        supabase.from("risk_assessment_settings").select("*").limit(1).maybeSingle(),
+      ]);
+
+      setQuestions((questionsRes.data as any) || []);
+      setSettings(settingsRes.data);
+
+      if (sessionId) {
+        const [sessionRes, answersRes] = await Promise.all([
+          supabase.from("risk_assessment_sessions").select("*").eq("id", sessionId).single(),
+          supabase.from("risk_assessment_answers").select("*").eq("session_id", sessionId),
+        ]);
+        if (sessionRes.data) {
+          setSession(sessionRes.data);
+          if ((sessionRes.data as any).status === "completed") setShowConclusion(true);
+        }
+        const answerMap: Record<string, Answer> = {};
+        ((answersRes.data as any[]) || []).forEach((a) => {
+          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "" };
+        });
+        setAnswers(answerMap);
+      }
+
+      setLoading(false);
+    })();
+  }, [sessionId]);
+
+  const getAnswer = (questionId: string): Answer => {
+    return answers[questionId] || { question_id: questionId, score: 0, notes: "" };
+  };
+
+  const updateAnswer = (questionId: string, updates: Partial<Answer>) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: { ...getAnswer(questionId), ...updates },
+    }));
+  };
+
+  const calculateScores = useCallback(() => {
+    let totalScore = 0;
+    let maxPossible = 0;
+    questions.forEach((q) => {
+      const answer = answers[q.id];
+      const score = (answer?.score || 0) * q.weight;
+      totalScore += score;
+      maxPossible += q.max_score * q.weight;
+    });
+    return { totalScore, maxPossible };
+  }, [answers, questions]);
+
+  const getRiskLevel = useCallback(
+    (percentage: number): string => {
+      const low = settings?.low_threshold ?? 30;
+      const medium = settings?.medium_threshold ?? 60;
+      if (percentage <= low) return "low";
+      if (percentage <= medium) return "medium";
+      return "high";
+    },
+    [settings]
+  );
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      const { totalScore, maxPossible } = calculateScores();
+      const percentage = maxPossible > 0 ? (totalScore / maxPossible) * 100 : 0;
+      const riskLevel = getRiskLevel(percentage);
+
+      let currentSessionId = sessionId;
+
+      if (!currentSessionId) {
+        // Create new session
+        const { data: newSession, error } = await supabase
+          .from("risk_assessment_sessions")
+          .insert({
+            customer_id: localStorage.getItem("selectedCustomerId") || "",
+            case_id: localStorage.getItem(`meo_case_id:${localStorage.getItem("selectedCustomerId")}`) || "",
+            total_score: totalScore,
+            max_possible_score: maxPossible,
+            risk_level: riskLevel,
+            status: "completed",
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        currentSessionId = (newSession as any).id;
+        setSession(newSession);
+      } else {
+        await supabase
+          .from("risk_assessment_sessions")
+          .update({ total_score: totalScore, max_possible_score: maxPossible, risk_level: riskLevel, status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", currentSessionId);
+      }
+
+      // Upsert answers
+      const answerRows = Object.values(answers).map((a) => ({
+        session_id: currentSessionId!,
+        question_id: a.question_id,
+        score: a.score,
+        notes: a.notes,
+      }));
+
+      if (answerRows.length > 0) {
+        // Delete existing then insert (upsert workaround)
+        await supabase.from("risk_assessment_answers").delete().eq("session_id", currentSessionId!);
+        await supabase.from("risk_assessment_answers").insert(answerRows);
+      }
+
+      setShowConclusion(true);
+      toast({ title: "Assessment saved" });
+
+      if (!sessionId) {
+        navigate(`/risk-assessment/process/${currentSessionId}`, { replace: true });
+      }
+    } catch (err: any) {
+      toast({ title: "Error saving", description: err.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const { totalScore, maxPossible } = calculateScores();
+  const percentage = maxPossible > 0 ? (totalScore / maxPossible) * 100 : 0;
+  const riskLevel = getRiskLevel(percentage);
+  const rlConfig = riskLevelConfig[riskLevel as keyof typeof riskLevelConfig] || riskLevelConfig.pending;
+  const RiskIcon = rlConfig.icon;
+
+  // Group questions by category
+  const categories = Array.from(new Set(questions.map((q) => q.category || "General")));
+
+  if (showConclusion) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-3xl space-y-8">
+          <Button variant="ghost" onClick={() => navigate("/risk-assessment")} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back to Risk Assessment
+          </Button>
+
+          <div className="text-center space-y-4">
+            <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+              Assessment Conclusion
+            </h1>
+
+            <Card className={`border-2 ${rlConfig.bg}`}>
+              <CardContent className="py-10 flex flex-col items-center gap-4">
+                <RiskIcon className={`h-16 w-16 ${rlConfig.color}`} />
+                <div className="text-center">
+                  <p className={`text-4xl font-bold ${rlConfig.color}`}>{rlConfig.label}</p>
+                  <p className="text-lg text-muted-foreground mt-2">
+                    Score: {totalScore.toFixed(1)} / {maxPossible.toFixed(1)} ({percentage.toFixed(0)}%)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Score Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {questions.map((q) => {
+                const a = getAnswer(q.id);
+                const weighted = a.score * q.weight;
+                const qMax = q.max_score * q.weight;
+                return (
+                  <div key={q.id} className="flex items-center justify-between rounded-md border p-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{q.question_text}</p>
+                      {a.notes && <p className="text-xs text-muted-foreground mt-1 truncate">{a.notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <Badge variant={a.score === 0 ? "secondary" : a.score >= q.max_score * 0.7 ? "destructive" : "default"}>
+                        {weighted.toFixed(1)} / {qMax.toFixed(1)}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          {session?.ai_summary && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">AI Summary</CardTitle></CardHeader>
+              <CardContent>
+                <div className="prose prose-sm max-w-none text-foreground">
+                  <ReactMarkdown>{session.ai_summary}</ReactMarkdown>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => { setShowConclusion(false); }}>
+              Edit Answers
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/risk-assessment")}>
+              Back to Overview
+            </Button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <div className="mx-auto max-w-3xl space-y-8">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => navigate("/risk-assessment")} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+          <Badge variant="outline" className="text-sm">
+            Score: {totalScore.toFixed(1)} / {maxPossible.toFixed(1)} ({percentage.toFixed(0)}%)
+          </Badge>
+        </div>
+
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
+            Risk Assessment
+          </h1>
+          <p className="text-muted-foreground">Answer each question by setting a risk score. Higher scores indicate higher risk.</p>
+        </div>
+
+        {questions.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              No questions configured. Go to the admin page to add questions.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {categories.map((cat) => {
+              const catQuestions = questions.filter((q) => (q.category || "General") === cat);
+              return (
+                <div key={cat} className="space-y-4">
+                  <h2 className="text-lg font-semibold border-b pb-2">{cat}</h2>
+                  {catQuestions.map((q) => {
+                    const answer = getAnswer(q.id);
+                    return (
+                      <Card key={q.id}>
+                        <CardContent className="pt-6 space-y-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-medium">{q.question_text}</Label>
+                              <Badge variant="outline" className="text-xs font-mono">
+                                {answer.score} / {q.max_score}
+                              </Badge>
+                            </div>
+                            {q.description && (
+                              <p className="text-xs text-muted-foreground">{q.description}</p>
+                            )}
+                          </div>
+
+                          <Slider
+                            value={[answer.score]}
+                            min={0}
+                            max={q.max_score}
+                            step={1}
+                            onValueChange={([val]) => updateAnswer(q.id, { score: val })}
+                          />
+
+                          <Textarea
+                            placeholder="Notes (optional)..."
+                            value={answer.notes}
+                            onChange={(e) => updateAnswer(q.id, { notes: e.target.value })}
+                            className="h-16 text-sm"
+                          />
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              );
+            })}
+
+            <div className="sticky bottom-4 z-10">
+              <Card className="border-primary/30 shadow-lg">
+                <CardContent className="flex items-center justify-between py-4">
+                  <div className="flex items-center gap-3">
+                    <RiskIcon className={`h-5 w-5 ${rlConfig.color}`} />
+                    <span className={`font-medium ${rlConfig.color}`}>{rlConfig.label}</span>
+                    <span className="text-sm text-muted-foreground">
+                      ({percentage.toFixed(0)}%)
+                    </span>
+                  </div>
+                  <Button onClick={handleSubmit} disabled={saving} className="gap-2">
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    {saving ? "Saving..." : "Complete Assessment"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+      </div>
+    </AppLayout>
+  );
+}
