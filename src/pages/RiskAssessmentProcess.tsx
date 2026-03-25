@@ -748,6 +748,16 @@ export default function RiskAssessmentProcess() {
                             >
                               {generatingNoteFor === q.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className={`shrink-0 self-start mt-0.5 ${savedAnswers.has(q.id) ? "text-green-600 border-green-300" : ""}`}
+                              disabled={savingAnswerFor === q.id}
+                              onClick={() => saveAnswer(q.id)}
+                              title="Save this answer"
+                            >
+                              {savingAnswerFor === q.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
