@@ -324,11 +324,18 @@ export default function RiskAssessmentAdmin() {
                 <div className="grid gap-4 grid-cols-2">
                   <div className="space-y-2">
                     <Label className="text-sm">Model</Label>
-                    <Input
-                      value={settings?.ai_model ?? ""}
-                      onChange={(e) => settings && setSettings({ ...settings, ai_model: e.target.value })}
-                      placeholder="gpt-4o"
-                    />
+                    <Select
+                      value={settings?.ai_model || "llama3.1:latest"}
+                      onValueChange={(v) => settings && setSettings({ ...settings, ai_model: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="llama3.1:latest">llama3.1:latest</SelectItem>
+                        <SelectItem value="mistral-nemo:latest">mistral-nemo:latest</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm">Output Language</Label>
