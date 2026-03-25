@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken, getMeoUserId } from "@/lib/meoToken";
 import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database, Plus, RefreshCw } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import ReactMarkdown from "react-markdown";
 
 const iconMap: Record<string, React.ElementType> = {
