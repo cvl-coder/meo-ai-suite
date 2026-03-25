@@ -71,6 +71,12 @@ type CaseOption = {
   status: string;
 };
 
+type EntityOption = {
+  id: string;
+  name: string;
+  type: string;
+};
+
 export default function AiAdmin() {
   const [functions, setFunctions] = useState<AiFunction[]>([]);
   const [loading, setLoading] = useState(true);
