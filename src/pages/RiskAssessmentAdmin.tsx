@@ -32,6 +32,7 @@ type Question = {
   sort_order: number;
   enabled: boolean;
   ai_prompt_template: string;
+  question_type: string;
 };
 
 type SettingsData = {
@@ -70,6 +71,7 @@ export default function RiskAssessmentAdmin() {
     sort_order: 0,
     enabled: true,
     ai_prompt_template: "",
+    question_type: "single_select",
   });
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
   const [savingQuestion, setSavingQuestion] = useState(false);
@@ -118,14 +120,14 @@ export default function RiskAssessmentAdmin() {
 
   const openAddDialog = () => {
     setEditingQuestion(null);
-    setFormData({ category: "", question_text: "", description: "", max_score: 5, weight: 1.0, sort_order: questions.length, enabled: true, ai_prompt_template: "" });
+    setFormData({ category: "", question_text: "", description: "", max_score: 5, weight: 1.0, sort_order: questions.length, enabled: true, ai_prompt_template: "", question_type: "single_select" });
     setAnswerOptions([]);
     setShowAddDialog(true);
   };
 
   const openEditDialog = async (q: Question) => {
     setEditingQuestion(q);
-    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, weight: q.weight, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "" });
+    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, weight: q.weight, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "", question_type: q.question_type || "single_select" });
     
     // Load existing answer options
     const { data } = await supabase
@@ -280,7 +282,8 @@ export default function RiskAssessmentAdmin() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{q.question_text}</p>
                         <div className="flex gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
+                        <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
+                          <Badge variant="secondary" className="text-xs">{q.question_type === "multi_select" ? "Multi" : "Single"}</Badge>
                           <Badge variant="secondary" className="text-xs">Max: {q.max_score}</Badge>
                           {q.weight !== 1 && <Badge variant="secondary" className="text-xs">×{q.weight}</Badge>}
                         </div>
