@@ -1,0 +1,1 @@
+UPDATE ai_functions SET name = 'Risk assessment support', created_at = '2026-01-01 00:00:00+00' WHERE id = 'c0b2de3e-0bb0-459d-a1da-1947d2ab9862';
