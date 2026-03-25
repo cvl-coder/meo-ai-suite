@@ -120,26 +120,30 @@ export default function RiskAssessmentProcess() {
   const generateNoteForQuestion = async (question: Question) => {
     setGeneratingNoteFor(question.id);
     try {
-      const allAnswersContext = questions.map((q) => {
+      const allAnswersSummary = questions.map((q) => {
         const a = getAnswer(q.id);
-        return { question: q.question_text, category: q.category, score: a.score, maxScore: q.max_score, weight: q.weight, notes: a.notes || "" };
-      });
+        return `- ${q.question_text} (${q.category}): ${a.score}/${q.max_score}${a.notes ? ` — ${a.notes}` : ""}`;
+      }).join("\n");
 
       const currentAnswer = getAnswer(question.id);
       const outputLang = settings?.output_language || "English";
 
-      const systemMessage = `You are a risk assessment analyst. You write concise, professional risk analysis notes. IMPORTANT: Always write your response in ${outputLang}.`;
+      const systemMessage = 
+        `You are a risk assessment analyst. You write concise, professional risk analysis notes (2-4 sentences). ` +
+        `Do NOT repeat or echo the input data, scores, or question text back. Just provide your analysis. ` +
+        `IMPORTANT: Always write your response in ${outputLang}.\n\n` +
+        `Context — all current assessment scores:\n${allAnswersSummary}`;
 
       const defaultUserPrompt = 
-        `Based on the following risk question and assessment context, write a concise risk analysis note (2-4 sentences) for this specific question.\n\n` +
-        `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\nAll assessment answers for context:\n{{all_answers}}\n\n` +
-        `Write a brief, professional note analyzing the risk factor for this specific question.`;
+        `Write a concise risk analysis note for this question:\n\n` +
+        `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
+        `Provide only your professional risk analysis. Do not repeat the input data.`;
 
       const userPrompt = (question.ai_prompt_template || defaultUserPrompt)
         .replace(/\{\{question\}\}/g, question.question_text)
         .replace(/\{\{score\}\}/g, String(currentAnswer.score))
         .replace(/\{\{max_score\}\}/g, String(question.max_score))
-        .replace(/\{\{all_answers\}\}/g, JSON.stringify(allAnswersContext, null, 2));
+        .replace(/\{\{all_answers\}\}/g, allAnswersSummary);
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
