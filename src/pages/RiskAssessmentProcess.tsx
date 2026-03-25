@@ -133,11 +133,15 @@ export default function RiskAssessmentProcess() {
         `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
         `Provide only your professional risk analysis.`;
 
-      const userPrompt = (question.ai_prompt_template || defaultUserPrompt)
+      let userPrompt = (question.ai_prompt_template || defaultUserPrompt)
         .replace(/\{\{question\}\}/g, question.question_text)
         .replace(/\{\{score\}\}/g, String(currentAnswer.score))
         .replace(/\{\{max_score\}\}/g, String(question.max_score))
         .replace(/\{\{all_answers\}\}/g, "");
+
+      // Always append factual context so the AI never hallucinates
+      const factBlock = `\n\n--- Factual Context (use ONLY this data) ---\nQuestion: ${question.question_text}\nScore: ${currentAnswer.score} / ${question.max_score}\nNotes: ${currentAnswer.notes || "(none)"}`;
+      userPrompt += factBlock;
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
