@@ -27,7 +27,8 @@ serve(async (req) => {
         baseUrl += "/chat/completions";
       }
       endpoint = baseUrl;
-      apiKey = custom_api_key || "";
+      // Use provided key, or fall back to MEO_API_KEY for core.meo.io
+      apiKey = custom_api_key || Deno.env.get("MEO_API_KEY") || "";
       modelName = model || "";
     } else {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -44,13 +45,17 @@ serve(async (req) => {
     console.log(`Chat request: provider=${provider}, model=${modelName}, endpoint=${endpoint}`);
 
     let response: Response;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
     try {
       response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           model: modelName || undefined,
           messages,
