@@ -330,6 +330,7 @@ export default function ApiTest() {
       case "getCases": return { customerId, page: 1, personToken, limit: 10, statuses: ["Open", "Approved", "Rejected"] };
       case "getCase": return { caseId, customerId, personToken };
       case "getRiskAssessments": return { caseId, customerId, personToken, page: 1, limit: 100, orderColumn: "createdAt", orderDirection: "desc" };
+      case "getEntityRiskAssessments": return { customerId, entityId, personToken, page: 1, limit: 100, orderColumn: "createdAt", orderDirection: "desc" };
       case "getEntityCustomProperties": return { customerId, entityId, personToken, page: 1, limit: 100 };
       case "getEntityUserdata": return { customerId, entityId, personToken };
       default: return {};
