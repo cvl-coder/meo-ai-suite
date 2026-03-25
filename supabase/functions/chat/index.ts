@@ -42,7 +42,7 @@ serve(async (req) => {
       modelName = model || "google/gemini-3-flash-preview";
     }
 
-    console.log(`Chat request: provider=${provider}, model=${modelName}, endpoint=${endpoint}`);
+    console.log(`Chat request: provider=${provider}, model=${modelName}, endpoint=${endpoint}, hasApiKey=${!!apiKey}, keyLength=${apiKey?.length || 0}`);
 
     let response: Response;
     const headers: Record<string, string> = {
