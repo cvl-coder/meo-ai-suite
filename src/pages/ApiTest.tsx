@@ -51,6 +51,8 @@ export default function ApiTest() {
   const [dataId, setDataId] = useState("");
   const [caseId, setCaseId] = useState("");
   const [entityId, setEntityId] = useState("");
+  const [caseEntities, setCaseEntities] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
   const [checkId, setCheckId] = useState("");
   const [copied, setCopied] = useState(false);
   const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>([]);
@@ -126,6 +128,31 @@ export default function ApiTest() {
       throw error;
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCaseEntities = async () => {
+    if (!caseId || !customerId || !personToken) {
+      toast({ title: "Missing fields", description: "Case ID, Customer ID, and Person Token are required.", variant: "destructive" });
+      return;
+    }
+    setLoadingEntities(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("meo-api-test", {
+        body: { action: "getCaseEntities", payload: { caseId, customerId, personToken } },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const entities = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      const mapped = entities.map((e: any) => ({ id: e.id || e.entityId, name: e.name || e.relationsIdentifier || "Unnamed", type: e.type || "Unknown" }));
+      setCaseEntities(mapped);
+      if (mapped.length > 0 && !entityId) setEntityId(mapped[0].id);
+      if (mapped.length === 0) toast({ title: "No entities", description: "No entities found for this case." });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch entities";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setLoadingEntities(false);
     }
   };
 
@@ -411,8 +438,27 @@ export default function ApiTest() {
                     <Input value={caseId} onChange={(e) => setCaseId(e.target.value)} placeholder="Case ID" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Entity ID</Label>
-                    <Input value={entityId} onChange={(e) => setEntityId(e.target.value)} placeholder="Entity ID" />
+                    <div className="flex items-center justify-between">
+                      <Label>Entity ID</Label>
+                      <Button variant="ghost" size="sm" disabled={loadingEntities || !caseId} onClick={fetchCaseEntities}>
+                        {loadingEntities ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        <span className="ml-1 text-xs">Fetch</span>
+                      </Button>
+                    </div>
+                    {caseEntities.length > 0 ? (
+                      <Select value={entityId} onValueChange={setEntityId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select entity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {caseEntities.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>{e.name} ({e.type}) — {e.id.slice(0, 8)}…</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={entityId} onChange={(e) => setEntityId(e.target.value)} placeholder="Enter Entity ID or click Fetch" />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Data ID</Label>
