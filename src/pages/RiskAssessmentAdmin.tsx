@@ -554,7 +554,7 @@ export default function RiskAssessmentAdmin() {
                 className="h-24 font-mono text-xs"
               />
               <p className="text-xs text-muted-foreground">
-                Available: <code className="bg-muted px-1 rounded">{"{{question}}"}</code>, <code className="bg-muted px-1 rounded">{"{{score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{max_score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{selected_answer}}"}</code>, <code className="bg-muted px-1 rounded">{"{{all_answers}}"}</code>
+                Available: <code className="bg-muted px-1 rounded">{"{{question}}"}</code>, <code className="bg-muted px-1 rounded">{"{{description}}"}</code>, <code className="bg-muted px-1 rounded">{"{{score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{max_score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{selected_answer}}"}</code>, <code className="bg-muted px-1 rounded">{"{{all_answers}}"}</code>
               </p>
             </div>
           </div>
