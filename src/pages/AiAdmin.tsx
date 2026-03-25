@@ -418,6 +418,7 @@ export default function AiAdmin() {
     setIsStreaming(true);
 
     try {
+      // Step 1: Fetch case-level risk assessments
       const riskAssessmentData = await invokeMeoAction("getRiskAssessments", {
         caseId: selectedCaseId,
         customerId: selectedCustomerId,
@@ -428,9 +429,39 @@ export default function AiAdmin() {
         orderDirection: "desc",
       });
 
+      // Step 2: Fetch entity-level risk assessments for selected entities
+      const entityRiskResults: Array<{ entityId: string; entityName: string; data: any }> = [];
+      if (selectedEntityIds.length > 0) {
+        const entityPromises = selectedEntityIds.map(async (eid) => {
+          const entity = caseEntities.find((e) => e.id === eid);
+          try {
+            const entityData = await invokeMeoAction("getEntityRiskAssessments", {
+              entityId: eid,
+              customerId: selectedCustomerId,
+              personToken: meoToken,
+              page: 1,
+              limit: 100,
+              orderColumn: "createdAt",
+              orderDirection: "desc",
+            });
+            return { entityId: eid, entityName: entity?.name || eid, data: entityData };
+          } catch {
+            return { entityId: eid, entityName: entity?.name || eid, data: { error: "Failed to fetch" } };
+          }
+        });
+        const results = await Promise.all(entityPromises);
+        entityRiskResults.push(...results);
+      }
+
+      // Merge case + entity risk data
+      const combinedRiskData = {
+        caseRiskAssessments: riskAssessmentData,
+        entityRiskAssessments: entityRiskResults,
+      };
+
       const clientData = {
         ...getSelectedInputData(fn.id),
-        risk_text: JSON.stringify(riskAssessmentData, null, 2),
+        risk_text: JSON.stringify(combinedRiskData, null, 2),
         customer_id: selectedCustomerId,
         case_id: selectedCaseId,
       };
