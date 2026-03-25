@@ -445,7 +445,7 @@ async function handleAction(action: string, payload: Record<string, any>) {
           Authorization: `Bearer ${payload.personToken}`,
           "X-Customer-Id": payload.customerId,
         },
-      });
+      }, true);
     }
     case "getCase": {
       requireFields(payload, ["personToken", "customerId", "caseId"]);
