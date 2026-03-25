@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken, getMeoUserId } from "@/lib/meoToken";
 import { Search, Brain, FileText, Sparkles, Settings, Play, Loader2, ChevronUp, Database, Plus, RefreshCw } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import ReactMarkdown from "react-markdown";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -70,6 +71,12 @@ type CaseOption = {
   status: string;
 };
 
+type EntityOption = {
+  id: string;
+  name: string;
+  type: string;
+};
+
 export default function AiAdmin() {
   const [functions, setFunctions] = useState<AiFunction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +99,9 @@ export default function AiAdmin() {
   const [selectedCaseId, setSelectedCaseId] = useState("");
   const [loadingWorkspaceParams, setLoadingWorkspaceParams] = useState(false);
   const [loadingCases, setLoadingCases] = useState(false);
+  const [caseEntities, setCaseEntities] = useState<EntityOption[]>([]);
+  const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
   const navigate = useNavigate();
 
   const createFunction = async () => {
@@ -270,17 +280,73 @@ export default function AiAdmin() {
     }
   }, [expandedId, loadWorkspaceParams, meoToken, meoUserId, selectedCustomerId, workspaceOptions.length]);
 
+  useEffect(() => {
+    if (selectedCaseId && selectedCustomerId && meoToken && caseEntities.length === 0) {
+      void fetchEntitiesForCase(selectedCaseId);
+    }
+  }, [selectedCaseId, selectedCustomerId, meoToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleWorkspaceChange = async (customerId: string) => {
     setSelectedCustomerId(customerId);
     localStorage.setItem("selectedCustomerId", customerId);
+    setCaseEntities([]);
+    setSelectedEntityIds([]);
     await loadCasesForWorkspace(customerId);
   };
 
+  const fetchEntitiesForCase = useCallback(async (caseIdToFetch: string) => {
+    if (!caseIdToFetch || !selectedCustomerId || !meoToken) {
+      setCaseEntities([]);
+      setSelectedEntityIds([]);
+      return;
+    }
+    setLoadingEntities(true);
+    try {
+      const data = await invokeMeoAction("getCase", {
+        caseId: caseIdToFetch,
+        customerId: selectedCustomerId,
+        personToken: meoToken,
+      });
+      const caseData = data?.data || data;
+      const individuals = Array.isArray(caseData?.individuals) ? caseData.individuals : [];
+      const companies = Array.isArray(caseData?.affiliatedCompanies) ? caseData.affiliatedCompanies : [];
+      const allEntities = [...individuals, ...companies];
+      const mapped: EntityOption[] = allEntities
+        .map((e: any) => ({
+          id: e.id || e.entityId,
+          name: e.name || e.relationsIdentifier || "Unnamed",
+          type: e.type || (individuals.includes(e) ? "Individual" : "Company"),
+        }))
+        .filter((e) => e.id);
+      setCaseEntities(mapped);
+      setSelectedEntityIds(mapped.map((e) => e.id)); // select all by default
+    } catch {
+      setCaseEntities([]);
+      setSelectedEntityIds([]);
+    } finally {
+      setLoadingEntities(false);
+    }
+  }, [invokeMeoAction, meoToken, selectedCustomerId]);
+
   const handleCaseChange = (caseId: string) => {
     setSelectedCaseId(caseId);
-
     if (selectedCustomerId) {
       localStorage.setItem(`meo_case_id:${selectedCustomerId}`, caseId);
+    }
+    void fetchEntitiesForCase(caseId);
+  };
+
+  const toggleEntitySelection = (entityId: string) => {
+    setSelectedEntityIds((prev) =>
+      prev.includes(entityId) ? prev.filter((id) => id !== entityId) : [...prev, entityId]
+    );
+  };
+
+  const toggleAllEntities = () => {
+    if (selectedEntityIds.length === caseEntities.length) {
+      setSelectedEntityIds([]);
+    } else {
+      setSelectedEntityIds(caseEntities.map((e) => e.id));
     }
   };
 
@@ -358,6 +424,7 @@ export default function AiAdmin() {
     setIsStreaming(true);
 
     try {
+      // Step 1: Fetch case-level risk assessments
       const riskAssessmentData = await invokeMeoAction("getRiskAssessments", {
         caseId: selectedCaseId,
         customerId: selectedCustomerId,
@@ -368,9 +435,39 @@ export default function AiAdmin() {
         orderDirection: "desc",
       });
 
+      // Step 2: Fetch entity-level risk assessments for selected entities
+      const entityRiskResults: Array<{ entityId: string; entityName: string; data: any }> = [];
+      if (selectedEntityIds.length > 0) {
+        const entityPromises = selectedEntityIds.map(async (eid) => {
+          const entity = caseEntities.find((e) => e.id === eid);
+          try {
+            const entityData = await invokeMeoAction("getEntityRiskAssessments", {
+              entityId: eid,
+              customerId: selectedCustomerId,
+              personToken: meoToken,
+              page: 1,
+              limit: 100,
+              orderColumn: "createdAt",
+              orderDirection: "desc",
+            });
+            return { entityId: eid, entityName: entity?.name || eid, data: entityData };
+          } catch {
+            return { entityId: eid, entityName: entity?.name || eid, data: { error: "Failed to fetch" } };
+          }
+        });
+        const results = await Promise.all(entityPromises);
+        entityRiskResults.push(...results);
+      }
+
+      // Merge case + entity risk data
+      const combinedRiskData = {
+        caseRiskAssessments: riskAssessmentData,
+        entityRiskAssessments: entityRiskResults,
+      };
+
       const clientData = {
         ...getSelectedInputData(fn.id),
-        risk_text: JSON.stringify(riskAssessmentData, null, 2),
+        risk_text: JSON.stringify(combinedRiskData, null, 2),
         customer_id: selectedCustomerId,
         case_id: selectedCaseId,
       };
@@ -478,9 +575,10 @@ export default function AiAdmin() {
         });
 
         const riskAssessmentCount = Array.isArray(riskAssessmentData?.data) ? riskAssessmentData.data.length : 0;
+        const entityCount = entityRiskResults.length;
         toast({
           title: "Search completed",
-          description: `Used ${riskAssessmentCount} risk assessment${riskAssessmentCount === 1 ? "" : "s"} from the selected case.`,
+          description: `Used ${riskAssessmentCount} case risk assessment${riskAssessmentCount === 1 ? "" : "s"} + ${entityCount} entity risk assessment source${entityCount === 1 ? "" : "s"}.`,
         });
       } else {
         // JSON error response
@@ -697,6 +795,44 @@ export default function AiAdmin() {
                                   </Badge>
                                   <Badge variant="outline" className="text-xs">
                                     Status: {selectedCase.status}
+                                  </Badge>
+                                </div>
+                              )}
+                              {selectedCase && caseEntities.length > 0 && (
+                                <div className="space-y-3 pt-2 border-t border-border/50">
+                                  <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                      <Label className="text-sm font-medium">Entity risk assessments to include</Label>
+                                      <p className="text-xs text-muted-foreground">
+                                        Select which entities to fetch risk assessments for. These will be merged with the case-level risk data.
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {loadingEntities && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                                      <Button variant="ghost" size="sm" onClick={toggleAllEntities} className="text-xs">
+                                        {selectedEntityIds.length === caseEntities.length ? "Deselect all" : "Select all"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="grid gap-2 md:grid-cols-2">
+                                    {caseEntities.map((entity) => (
+                                      <label
+                                        key={entity.id}
+                                        className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                                      >
+                                        <Checkbox
+                                          checked={selectedEntityIds.includes(entity.id)}
+                                          onCheckedChange={() => toggleEntitySelection(entity.id)}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium truncate">{entity.name}</p>
+                                          <p className="text-xs text-muted-foreground">{entity.type} · {entity.id.slice(0, 8)}…</p>
+                                        </div>
+                                      </label>
+                                    ))}
+                                  </div>
+                                  <Badge variant="outline" className="text-xs">
+                                    {selectedEntityIds.length} of {caseEntities.length} entities selected
                                   </Badge>
                                 </div>
                               )}
