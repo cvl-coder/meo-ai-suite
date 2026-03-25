@@ -127,12 +127,15 @@ export default function RiskAssessmentProcess() {
 
       const currentAnswer = getAnswer(question.id);
       const outputLang = settings?.output_language || "English";
-      const defaultPrompt = 
-        `You are a risk assessment analyst. Based on the following risk question and assessment context, write a concise risk analysis note (2-4 sentences) for this specific question.\n\n` +
-        `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\nAll assessment answers for context:\n{{all_answers}}\n\n` +
-        `Write a brief, professional note analyzing the risk factor for this specific question. IMPORTANT: Write your response in ${outputLang}.`;
 
-      const prompt = (question.ai_prompt_template || defaultPrompt)
+      const systemMessage = `You are a risk assessment analyst. You write concise, professional risk analysis notes. IMPORTANT: Always write your response in ${outputLang}.`;
+
+      const defaultUserPrompt = 
+        `Based on the following risk question and assessment context, write a concise risk analysis note (2-4 sentences) for this specific question.\n\n` +
+        `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\nAll assessment answers for context:\n{{all_answers}}\n\n` +
+        `Write a brief, professional note analyzing the risk factor for this specific question.`;
+
+      const userPrompt = (question.ai_prompt_template || defaultUserPrompt)
         .replace(/\{\{question\}\}/g, question.question_text)
         .replace(/\{\{score\}\}/g, String(currentAnswer.score))
         .replace(/\{\{max_score\}\}/g, String(question.max_score))
@@ -151,7 +154,10 @@ export default function RiskAssessmentProcess() {
           Authorization: `Bearer ${authSession?.access_token || supabaseKey}`,
         },
         body: JSON.stringify({
-          messages: [{ role: "user", content: prompt }],
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: userPrompt },
+          ],
           model: settings?.ai_model || "llama3.1:latest",
           provider,
           custom_endpoint: settings?.ai_endpoint_url || "http://core.meo.io/v1",
