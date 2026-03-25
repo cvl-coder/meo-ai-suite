@@ -99,6 +99,9 @@ export default function AiAdmin() {
   const [selectedCaseId, setSelectedCaseId] = useState("");
   const [loadingWorkspaceParams, setLoadingWorkspaceParams] = useState(false);
   const [loadingCases, setLoadingCases] = useState(false);
+  const [caseEntities, setCaseEntities] = useState<EntityOption[]>([]);
+  const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
   const navigate = useNavigate();
 
   const createFunction = async () => {
