@@ -12,6 +12,8 @@ import Integration from "./pages/Integration";
 import ChatPlayground from "./pages/ChatPlayground";
 import ApiTest from "./pages/ApiTest";
 import RiskAssessment from "./pages/RiskAssessment";
+import RiskAssessmentProcess from "./pages/RiskAssessmentProcess";
+import RiskAssessmentAdmin from "./pages/RiskAssessmentAdmin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +37,9 @@ const App = () => (
             <Route path="/integration" element={guarded(<Integration />)} />
             <Route path="/chat" element={guarded(<ChatPlayground />)} />
             <Route path="/risk-assessment" element={guarded(<RiskAssessment />)} />
+            <Route path="/risk-assessment/process" element={guarded(<RiskAssessmentProcess />)} />
+            <Route path="/risk-assessment/process/:sessionId" element={guarded(<RiskAssessmentProcess />)} />
+            <Route path="/risk-assessment/admin" element={guarded(<RiskAssessmentAdmin />)} />
             <Route path="/api-test" element={guarded(<ApiTest />)} />
             <Route path="*" element={<NotFound />} />
           </Routes>
