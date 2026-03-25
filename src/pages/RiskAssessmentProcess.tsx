@@ -412,6 +412,57 @@ export default function RiskAssessmentProcess() {
     setGeneratingSummary(false);
   };
 
+  const saveAnswer = async (questionId: string) => {
+    setSavingAnswerFor(questionId);
+    try {
+      const answer = getAnswer(questionId);
+      let currentSessionId = sessionId;
+
+      // Create session if it doesn't exist yet
+      if (!currentSessionId) {
+        const { totalScore, maxPossible } = calculateScores();
+        const percentage = maxPossible > 0 ? (totalScore / maxPossible) * 100 : 0;
+        const riskLevel = getRiskLevel(percentage);
+
+        const { data: newSession, error } = await supabase
+          .from("risk_assessment_sessions")
+          .insert({
+            customer_id: localStorage.getItem("selectedCustomerId") || "",
+            case_id: localStorage.getItem(`meo_case_id:${localStorage.getItem("selectedCustomerId")}`) || "",
+            total_score: totalScore,
+            max_possible_score: maxPossible,
+            risk_level: riskLevel,
+            status: "in_progress",
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        currentSessionId = (newSession as any).id;
+        setSession(newSession);
+        navigate(`/risk-assessment/process/${currentSessionId}`, { replace: true });
+      }
+
+      // Upsert the single answer
+      await supabase.from("risk_assessment_answers").delete()
+        .eq("session_id", currentSessionId!)
+        .eq("question_id", questionId);
+
+      await supabase.from("risk_assessment_answers").insert({
+        session_id: currentSessionId!,
+        question_id: questionId,
+        score: answer.score,
+        notes: answer.notes,
+      });
+
+      setSavedAnswers((prev) => new Set(prev).add(questionId));
+      toast({ title: "Answer saved" });
+    } catch (err: any) {
+      toast({ title: "Error saving answer", description: err.message, variant: "destructive" });
+    }
+    setSavingAnswerFor(null);
+  };
+
   const handleSubmit = async () => {
     setSaving(true);
     try {
