@@ -792,6 +792,44 @@ export default function AiAdmin() {
                                   </Badge>
                                 </div>
                               )}
+                              {selectedCase && caseEntities.length > 0 && (
+                                <div className="space-y-3 pt-2 border-t border-border/50">
+                                  <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                      <Label className="text-sm font-medium">Entity risk assessments to include</Label>
+                                      <p className="text-xs text-muted-foreground">
+                                        Select which entities to fetch risk assessments for. These will be merged with the case-level risk data.
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {loadingEntities && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                                      <Button variant="ghost" size="sm" onClick={toggleAllEntities} className="text-xs">
+                                        {selectedEntityIds.length === caseEntities.length ? "Deselect all" : "Select all"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="grid gap-2 md:grid-cols-2">
+                                    {caseEntities.map((entity) => (
+                                      <label
+                                        key={entity.id}
+                                        className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                                      >
+                                        <Checkbox
+                                          checked={selectedEntityIds.includes(entity.id)}
+                                          onCheckedChange={() => toggleEntitySelection(entity.id)}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium truncate">{entity.name}</p>
+                                          <p className="text-xs text-muted-foreground">{entity.type} · {entity.id.slice(0, 8)}…</p>
+                                        </div>
+                                      </label>
+                                    ))}
+                                  </div>
+                                  <Badge variant="outline" className="text-xs">
+                                    {selectedEntityIds.length} of {caseEntities.length} entities selected
+                                  </Badge>
+                                </div>
+                              )}
                             </div>
 
                             <div className="space-y-3">
