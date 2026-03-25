@@ -12,7 +12,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Plus, Loader2, GripVertical, Pencil, Trash2, Save } from "lucide-react";
+import { Settings, Plus, Loader2, GripVertical, Pencil, Trash2, Save, X } from "lucide-react";
+
+type AnswerOption = {
+  id?: string;
+  question_id?: string;
+  label: string;
+  score: number;
+  sort_order: number;
+};
 
 type Question = {
   id: string;
@@ -63,6 +71,7 @@ export default function RiskAssessmentAdmin() {
     enabled: true,
     ai_prompt_template: "",
   });
+  const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
   const [savingQuestion, setSavingQuestion] = useState(false);
 
   useEffect(() => {
@@ -110,13 +119,37 @@ export default function RiskAssessmentAdmin() {
   const openAddDialog = () => {
     setEditingQuestion(null);
     setFormData({ category: "", question_text: "", description: "", max_score: 5, weight: 1.0, sort_order: questions.length, enabled: true, ai_prompt_template: "" });
+    setAnswerOptions([]);
     setShowAddDialog(true);
   };
 
-  const openEditDialog = (q: Question) => {
+  const openEditDialog = async (q: Question) => {
     setEditingQuestion(q);
     setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, weight: q.weight, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "" });
+    
+    // Load existing answer options
+    const { data } = await supabase
+      .from("risk_assessment_answer_options")
+      .select("*")
+      .eq("question_id", q.id)
+      .order("sort_order");
+    setAnswerOptions((data as any[]) || []);
     setShowAddDialog(true);
+  };
+
+  const addAnswerOption = () => {
+    setAnswerOptions((prev) => [
+      ...prev,
+      { label: "", score: 0, sort_order: prev.length },
+    ]);
+  };
+
+  const updateAnswerOption = (index: number, updates: Partial<AnswerOption>) => {
+    setAnswerOptions((prev) => prev.map((o, i) => (i === index ? { ...o, ...updates } : o)));
+  };
+
+  const removeAnswerOption = (index: number) => {
+    setAnswerOptions((prev) => prev.filter((_, i) => i !== index));
   };
 
   const saveQuestion = async () => {
@@ -126,25 +159,50 @@ export default function RiskAssessmentAdmin() {
     }
     setSavingQuestion(true);
 
+    // Derive max_score from answer options if they exist
+    const derivedMaxScore = answerOptions.length > 0
+      ? Math.max(...answerOptions.map((o) => o.score), 0)
+      : formData.max_score;
+
+    const questionPayload = { ...formData, max_score: derivedMaxScore };
+
+    let questionId = editingQuestion?.id;
+
     if (editingQuestion) {
       const { error } = await supabase
         .from("risk_assessment_questions")
-        .update({ ...formData, updated_at: new Date().toISOString() })
+        .update({ ...questionPayload, updated_at: new Date().toISOString() })
         .eq("id", editingQuestion.id);
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
-      } else {
-        toast({ title: "Question updated" });
+        setSavingQuestion(false);
+        return;
       }
     } else {
-      const { error } = await supabase.from("risk_assessment_questions").insert(formData);
+      const { data, error } = await supabase.from("risk_assessment_questions").insert(questionPayload).select().single();
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
-      } else {
-        toast({ title: "Question added" });
+        setSavingQuestion(false);
+        return;
+      }
+      questionId = (data as any).id;
+    }
+
+    // Save answer options: delete existing, then insert new
+    if (questionId) {
+      await supabase.from("risk_assessment_answer_options").delete().eq("question_id", questionId);
+      if (answerOptions.length > 0) {
+        const rows = answerOptions.map((o, i) => ({
+          question_id: questionId!,
+          label: o.label,
+          score: o.score,
+          sort_order: i,
+        }));
+        await supabase.from("risk_assessment_answer_options").insert(rows);
       }
     }
 
+    toast({ title: editingQuestion ? "Question updated" : "Question added" });
     setSavingQuestion(false);
     setShowAddDialog(false);
     loadData();
@@ -181,8 +239,6 @@ export default function RiskAssessmentAdmin() {
       </AppLayout>
     );
   }
-
-  const categories = Array.from(new Set(questions.map((q) => q.category || "General")));
 
   return (
     <AppLayout>
@@ -379,7 +435,7 @@ export default function RiskAssessmentAdmin() {
 
       {/* Add/Edit Question Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingQuestion ? "Edit Question" : "Add Question"}</DialogTitle>
           </DialogHeader>
@@ -398,30 +454,85 @@ export default function RiskAssessmentAdmin() {
                 <Input value={formData.category} onChange={(e) => setFormData((p) => ({ ...p, category: e.target.value }))} placeholder="e.g. KYC, PEP, Sanctions" />
               </div>
               <div className="space-y-2">
-                <Label>Max Score</Label>
-                <Input type="number" value={formData.max_score} onChange={(e) => setFormData((p) => ({ ...p, max_score: Number(e.target.value) }))} min={1} max={100} />
+                <Label>Weight Multiplier</Label>
+                <Input type="number" step="0.1" value={formData.weight} onChange={(e) => setFormData((p) => ({ ...p, weight: Number(e.target.value) }))} min={0.1} />
               </div>
             </div>
             <div className="grid gap-4 grid-cols-2">
               <div className="space-y-2">
-                <Label>Weight Multiplier</Label>
-                <Input type="number" step="0.1" value={formData.weight} onChange={(e) => setFormData((p) => ({ ...p, weight: Number(e.target.value) }))} min={0.1} />
-              </div>
-              <div className="space-y-2">
                 <Label>Sort Order</Label>
                 <Input type="number" value={formData.sort_order} onChange={(e) => setFormData((p) => ({ ...p, sort_order: Number(e.target.value) }))} />
               </div>
+              {answerOptions.length === 0 && (
+                <div className="space-y-2">
+                  <Label>Max Score (manual)</Label>
+                  <Input type="number" value={formData.max_score} onChange={(e) => setFormData((p) => ({ ...p, max_score: Number(e.target.value) }))} min={1} max={100} />
+                  <p className="text-xs text-muted-foreground">Used as fallback slider if no answer options are defined.</p>
+                </div>
+              )}
             </div>
+
+            {/* Answer Options */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-semibold">Answer Options</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Define selectable answers. Each has a label (shown to user) and a hidden risk score.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={addAnswerOption} className="gap-1">
+                  <Plus className="h-3.5 w-3.5" /> Add Option
+                </Button>
+              </div>
+
+              {answerOptions.length === 0 ? (
+                <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  No answer options defined. Users will see a slider (0 to max score) instead.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {answerOptions.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-md border p-2">
+                      <span className="text-xs text-muted-foreground w-5 text-center">{i + 1}</span>
+                      <Input
+                        className="flex-1"
+                        placeholder="Answer label (e.g. 'Low risk - no PEP exposure')"
+                        value={opt.label}
+                        onChange={(e) => updateAnswerOption(i, { label: e.target.value })}
+                      />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Label className="text-xs text-muted-foreground">Score:</Label>
+                        <Input
+                          type="number"
+                          className="w-20"
+                          value={opt.score}
+                          onChange={(e) => updateAnswerOption(i, { score: Number(e.target.value) })}
+                          min={0}
+                        />
+                      </div>
+                      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeAnswerOption(i)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground">
+                    Max score will be auto-derived from the highest option score ({Math.max(...answerOptions.map(o => o.score), 0)}).
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>AI Prompt Template</Label>
               <Textarea
                 value={formData.ai_prompt_template}
                 onChange={(e) => setFormData((p) => ({ ...p, ai_prompt_template: e.target.value }))}
-                placeholder="Custom AI prompt for generating notes for this question. Use {{question}}, {{score}}, {{max_score}}, {{all_answers}} variables..."
+                placeholder="Custom AI prompt for generating notes for this question. Use {{question}}, {{score}}, {{max_score}}, {{selected_answer}}, {{all_answers}} variables..."
                 className="h-24 font-mono text-xs"
               />
               <p className="text-xs text-muted-foreground">
-                Available: <code className="bg-muted px-1 rounded">{"{{question}}"}</code>, <code className="bg-muted px-1 rounded">{"{{score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{max_score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{all_answers}}"}</code>
+                Available: <code className="bg-muted px-1 rounded">{"{{question}}"}</code>, <code className="bg-muted px-1 rounded">{"{{score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{max_score}}"}</code>, <code className="bg-muted px-1 rounded">{"{{selected_answer}}"}</code>, <code className="bg-muted px-1 rounded">{"{{all_answers}}"}</code>
               </p>
             </div>
           </div>

@@ -13,6 +13,14 @@ import { getMeoToken } from "@/lib/meoToken";
 import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
+type AnswerOption = {
+  id: string;
+  question_id: string;
+  label: string;
+  score: number;
+  sort_order: number;
+};
+
 type Question = {
   id: string;
   category: string;
@@ -28,6 +36,7 @@ type Answer = {
   question_id: string;
   score: number;
   notes: string;
+  selected_option_label?: string;
 };
 
 const riskLevelConfig = {
@@ -42,6 +51,7 @@ export default function RiskAssessmentProcess() {
   const navigate = useNavigate();
 
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [answerOptionsByQuestion, setAnswerOptionsByQuestion] = useState<Record<string, AnswerOption[]>>({});
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,16 +62,25 @@ export default function RiskAssessmentProcess() {
   const [streamedSummary, setStreamedSummary] = useState("");
   const [generatingNoteFor, setGeneratingNoteFor] = useState<string | null>(null);
 
-  // Load questions, session, and settings
+  // Load questions, answer options, session, and settings
   useEffect(() => {
     (async () => {
-      const [questionsRes, settingsRes] = await Promise.all([
+      const [questionsRes, settingsRes, optionsRes] = await Promise.all([
         supabase.from("risk_assessment_questions").select("*").eq("enabled", true).order("sort_order"),
         supabase.from("risk_assessment_settings").select("*").limit(1).maybeSingle(),
+        supabase.from("risk_assessment_answer_options").select("*").order("sort_order"),
       ]);
 
       setQuestions((questionsRes.data as any) || []);
       setSettings(settingsRes.data);
+
+      // Group answer options by question_id
+      const optMap: Record<string, AnswerOption[]> = {};
+      ((optionsRes.data as any[]) || []).forEach((o) => {
+        if (!optMap[o.question_id]) optMap[o.question_id] = [];
+        optMap[o.question_id].push(o);
+      });
+      setAnswerOptionsByQuestion(optMap);
 
       if (sessionId) {
         const [sessionRes, answersRes] = await Promise.all([
@@ -74,8 +93,18 @@ export default function RiskAssessmentProcess() {
         }
         const answerMap: Record<string, Answer> = {};
         ((answersRes.data as any[]) || []).forEach((a) => {
-          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "" };
+          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "", selected_option_label: a.notes?.startsWith("[") ? undefined : undefined };
         });
+        
+        // Reconstruct selected_option_label from score + options
+        for (const qId of Object.keys(answerMap)) {
+          const opts = optMap[qId];
+          if (opts?.length) {
+            const matchingOpt = opts.find(o => o.score === answerMap[qId].score);
+            if (matchingOpt) answerMap[qId].selected_option_label = matchingOpt.label;
+          }
+        }
+        
         setAnswers(answerMap);
       }
 
@@ -84,7 +113,7 @@ export default function RiskAssessmentProcess() {
   }, [sessionId]);
 
   const getAnswer = (questionId: string): Answer => {
-    return answers[questionId] || { question_id: questionId, score: 0, notes: "" };
+    return answers[questionId] || { question_id: questionId, score: 0, notes: "", selected_option_label: undefined };
   };
 
   const updateAnswer = (questionId: string, updates: Partial<Answer>) => {
@@ -92,6 +121,10 @@ export default function RiskAssessmentProcess() {
       ...prev,
       [questionId]: { ...getAnswer(questionId), ...updates },
     }));
+  };
+
+  const selectAnswerOption = (questionId: string, option: AnswerOption) => {
+    updateAnswer(questionId, { score: option.score, selected_option_label: option.label });
   };
 
   const calculateScores = useCallback(() => {
@@ -122,25 +155,27 @@ export default function RiskAssessmentProcess() {
     try {
       const currentAnswer = getAnswer(question.id);
       const outputLang = settings?.output_language || "English";
+      const selectedLabel = currentAnswer.selected_option_label || "(no selection)";
 
-      const systemMessage = 
+      const systemMessage =
         `You are a risk assessment analyst. You write concise, professional risk analysis notes (2-4 sentences). ` +
         `Do NOT repeat or echo the input data, scores, or question text back. Just provide your analysis. ` +
         `IMPORTANT: Always write your response in ${outputLang}.`;
 
-      const defaultUserPrompt = 
+      const defaultUserPrompt =
         `Write a concise risk analysis note for this question:\n\n` +
-        `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
+        `Question: {{question}}\nSelected Answer: {{selected_answer}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
         `Provide only your professional risk analysis.`;
 
       let userPrompt = (question.ai_prompt_template || defaultUserPrompt)
         .replace(/\{\{question\}\}/g, question.question_text)
         .replace(/\{\{score\}\}/g, String(currentAnswer.score))
         .replace(/\{\{max_score\}\}/g, String(question.max_score))
+        .replace(/\{\{selected_answer\}\}/g, selectedLabel)
         .replace(/\{\{all_answers\}\}/g, "");
 
       // Always append factual context so the AI never hallucinates
-      const factBlock = `\n\n--- Factual Context (use ONLY this data) ---\nQuestion: ${question.question_text}\nScore: ${currentAnswer.score} / ${question.max_score}\nNotes: ${currentAnswer.notes || "(none)"}`;
+      const factBlock = `\n\n--- Factual Context (use ONLY this data) ---\nQuestion: ${question.question_text}\nSelected Answer: ${selectedLabel}\nScore: ${currentAnswer.score} / ${question.max_score}\nNotes: ${currentAnswer.notes || "(none)"}`;
       userPrompt += factBlock;
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -213,7 +248,6 @@ export default function RiskAssessmentProcess() {
     setStreamedSummary("");
 
     try {
-      // Fetch case risk assessment data from MEO
       let caseRiskData: any = null;
       if (meoToken && customerId && caseId) {
         try {
@@ -221,15 +255,15 @@ export default function RiskAssessmentProcess() {
             body: { action: "getRiskAssessments", payload: { caseId, customerId, personToken: meoToken, page: 1, limit: 100, orderColumn: "createdAt", orderDirection: "desc" } },
           });
           if (!error && data && !data.error) caseRiskData = data;
-        } catch { /* MEO data optional */ }
+        } catch {}
       }
 
-      // Build context from scored answers
       const answersContext = questions.map((q) => {
         const a = getAnswer(q.id);
         return {
           question: q.question_text,
           category: q.category,
+          selectedAnswer: a.selected_option_label || `Score ${a.score}`,
           score: a.score,
           maxScore: q.max_score,
           weight: q.weight,
@@ -243,7 +277,7 @@ export default function RiskAssessmentProcess() {
       const pct = mp > 0 ? (ts / mp) * 100 : 0;
 
       const summaryLang = settings?.output_language || "English";
-      const promptTemplate = settings?.ai_prompt_template || 
+      const promptTemplate = settings?.ai_prompt_template ||
         "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.\n\n" +
         "## Internal Risk Assessment Scores\n{{scored_answers}}\n\n" +
         "## Overall Result\nTotal Score: {{total_score}} / {{max_score}} ({{percentage}}%)\nRisk Level: {{risk_level}}\n\n" +
@@ -263,7 +297,6 @@ export default function RiskAssessmentProcess() {
         .replace("{{case_risk_section}}", caseRiskSection)
         .replace("{{risk_text}}", caseRiskData ? JSON.stringify(caseRiskData, null, 2) : "No case risk data available");
 
-      // Call chat edge function
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const authSession = (await supabase.auth.getSession()).data.session;
@@ -290,7 +323,6 @@ export default function RiskAssessmentProcess() {
         throw new Error(`AI error (${response.status}): ${errText.substring(0, 200)}`);
       }
 
-      // Stream response
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response body");
       const decoder = new TextDecoder();
@@ -314,7 +346,6 @@ export default function RiskAssessmentProcess() {
         }
       }
 
-      // Save to session
       if (fullText) {
         await supabase
           .from("risk_assessment_sessions")
@@ -339,7 +370,6 @@ export default function RiskAssessmentProcess() {
       let currentSessionId = sessionId;
 
       if (!currentSessionId) {
-        // Create new session
         const { data: newSession, error } = await supabase
           .from("risk_assessment_sessions")
           .insert({
@@ -363,7 +393,6 @@ export default function RiskAssessmentProcess() {
           .eq("id", currentSessionId);
       }
 
-      // Upsert answers
       const answerRows = Object.values(answers).map((a) => ({
         session_id: currentSessionId!,
         question_id: a.question_id,
@@ -372,7 +401,6 @@ export default function RiskAssessmentProcess() {
       }));
 
       if (answerRows.length > 0) {
-        // Delete existing then insert (upsert workaround)
         await supabase.from("risk_assessment_answers").delete().eq("session_id", currentSessionId!);
         await supabase.from("risk_assessment_answers").insert(answerRows);
       }
@@ -405,7 +433,6 @@ export default function RiskAssessmentProcess() {
   const rlConfig = riskLevelConfig[riskLevel as keyof typeof riskLevelConfig] || riskLevelConfig.pending;
   const RiskIcon = rlConfig.icon;
 
-  // Group questions by category
   const categories = Array.from(new Set(questions.map((q) => q.category || "General")));
 
   if (showConclusion) {
@@ -447,6 +474,9 @@ export default function RiskAssessmentProcess() {
                   <div key={q.id} className="flex items-center justify-between rounded-md border p-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{q.question_text}</p>
+                      {a.selected_option_label && (
+                        <p className="text-xs text-muted-foreground mt-0.5">Answer: {a.selected_option_label}</p>
+                      )}
                       {a.notes && <p className="text-xs text-muted-foreground mt-1 truncate">{a.notes}</p>}
                     </div>
                     <div className="flex items-center gap-2 ml-4">
@@ -522,7 +552,7 @@ export default function RiskAssessmentProcess() {
           <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
             Risk Assessment
           </h1>
-          <p className="text-muted-foreground">Answer each question by setting a risk score. Higher scores indicate higher risk.</p>
+          <p className="text-muted-foreground">Answer each question by selecting the most appropriate option.</p>
         </div>
 
         {questions.length === 0 ? (
@@ -540,28 +570,58 @@ export default function RiskAssessmentProcess() {
                   <h2 className="text-lg font-semibold border-b pb-2">{cat}</h2>
                   {catQuestions.map((q) => {
                     const answer = getAnswer(q.id);
+                    const options = answerOptionsByQuestion[q.id] || [];
+                    const hasOptions = options.length > 0;
+
                     return (
                       <Card key={q.id}>
                         <CardContent className="pt-6 space-y-4">
                           <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <Label className="text-sm font-medium">{q.question_text}</Label>
-                              <Badge variant="outline" className="text-xs font-mono">
-                                {answer.score} / {q.max_score}
-                              </Badge>
-                            </div>
+                            <Label className="text-sm font-medium">{q.question_text}</Label>
                             {q.description && (
                               <p className="text-xs text-muted-foreground">{q.description}</p>
                             )}
                           </div>
 
-                          <Slider
-                            value={[answer.score]}
-                            min={0}
-                            max={q.max_score}
-                            step={1}
-                            onValueChange={([val]) => updateAnswer(q.id, { score: val })}
-                          />
+                          {hasOptions ? (
+                            /* Answer option buttons — score is hidden from user */
+                            <div className="grid gap-2">
+                              {options.map((opt) => {
+                                const isSelected = answer.selected_option_label === opt.label;
+                                return (
+                                  <button
+                                    key={opt.id}
+                                    type="button"
+                                    onClick={() => selectAnswerOption(q.id, opt)}
+                                    className={`w-full text-left rounded-lg border-2 px-4 py-3 text-sm transition-colors ${
+                                      isSelected
+                                        ? "border-primary bg-primary/5 font-medium"
+                                        : "border-border hover:border-primary/40 hover:bg-muted/50"
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            /* Fallback slider for questions without predefined options */
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">Score</span>
+                                <Badge variant="outline" className="text-xs font-mono">
+                                  {answer.score} / {q.max_score}
+                                </Badge>
+                              </div>
+                              <Slider
+                                value={[answer.score]}
+                                min={0}
+                                max={q.max_score}
+                                step={1}
+                                onValueChange={([val]) => updateAnswer(q.id, { score: val })}
+                              />
+                            </>
+                          )}
 
                           <div className="flex items-center gap-2">
                             <Textarea

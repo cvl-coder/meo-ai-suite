@@ -171,6 +171,41 @@ export type Database = {
           },
         ]
       }
+      risk_assessment_answer_options: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          question_id: string
+          score: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          question_id: string
+          score?: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          question_id?: string
+          score?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_assessment_answer_options_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "risk_assessment_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       risk_assessment_answers: {
         Row: {
           created_at: string
