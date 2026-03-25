@@ -280,6 +280,12 @@ export default function AiAdmin() {
     }
   }, [expandedId, loadWorkspaceParams, meoToken, meoUserId, selectedCustomerId, workspaceOptions.length]);
 
+  useEffect(() => {
+    if (selectedCaseId && selectedCustomerId && meoToken && caseEntities.length === 0) {
+      void fetchEntitiesForCase(selectedCaseId);
+    }
+  }, [selectedCaseId, selectedCustomerId, meoToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleWorkspaceChange = async (customerId: string) => {
     setSelectedCustomerId(customerId);
     localStorage.setItem("selectedCustomerId", customerId);
