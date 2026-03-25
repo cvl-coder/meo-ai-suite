@@ -115,6 +115,132 @@ export default function RiskAssessmentProcess() {
     [settings]
   );
 
+  const generateAiSummary = async () => {
+    if (!session?.id) return;
+    const meoToken = getMeoToken();
+    const customerId = session.customer_id || localStorage.getItem("selectedCustomerId") || "";
+    const caseId = session.case_id || localStorage.getItem(`meo_case_id:${customerId}`) || "";
+
+    setGeneratingSummary(true);
+    setStreamedSummary("");
+
+    try {
+      // Fetch case risk assessment data from MEO
+      let caseRiskData: any = null;
+      if (meoToken && customerId && caseId) {
+        try {
+          const { data, error } = await supabase.functions.invoke("meo-api-test", {
+            body: { action: "getRiskAssessments", payload: { caseId, customerId, personToken: meoToken, page: 1, limit: 100, orderColumn: "createdAt", orderDirection: "desc" } },
+          });
+          if (!error && data && !data.error) caseRiskData = data;
+        } catch { /* MEO data optional */ }
+      }
+
+      // Build context from scored answers
+      const answersContext = questions.map((q) => {
+        const a = getAnswer(q.id);
+        return {
+          question: q.question_text,
+          category: q.category,
+          score: a.score,
+          maxScore: q.max_score,
+          weight: q.weight,
+          weightedScore: a.score * q.weight,
+          maxWeightedScore: q.max_score * q.weight,
+          notes: a.notes || "",
+        };
+      });
+
+      const { totalScore: ts, maxPossible: mp } = calculateScores();
+      const pct = mp > 0 ? (ts / mp) * 100 : 0;
+
+      // Build prompt
+      const promptTemplate = settings?.ai_prompt_template || 
+        "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.\n\n" +
+        "## Internal Risk Assessment Scores\n{{scored_answers}}\n\n" +
+        "## Overall Result\nTotal Score: {{total_score}} / {{max_score}} ({{percentage}}%)\nRisk Level: {{risk_level}}\n\n" +
+        "{{case_risk_section}}" +
+        "Provide a clear summary of the risk factors, highlighting the most significant findings and recommendations.";
+
+      const caseRiskSection = caseRiskData
+        ? `## Case Risk Assessment Data (from MEO)\n${JSON.stringify(caseRiskData, null, 2)}\n\n`
+        : "";
+
+      const prompt = promptTemplate
+        .replace("{{scored_answers}}", JSON.stringify(answersContext, null, 2))
+        .replace("{{total_score}}", ts.toFixed(1))
+        .replace("{{max_score}}", mp.toFixed(1))
+        .replace("{{percentage}}", pct.toFixed(0))
+        .replace("{{risk_level}}", getRiskLevel(pct))
+        .replace("{{case_risk_section}}", caseRiskSection)
+        .replace("{{risk_text}}", caseRiskData ? JSON.stringify(caseRiskData, null, 2) : "No case risk data available");
+
+      // Call chat edge function
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const authSession = (await supabase.auth.getSession()).data.session;
+
+      const provider = settings?.ai_endpoint_url ? "custom" : "lovable";
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseKey,
+          Authorization: `Bearer ${authSession?.access_token || supabaseKey}`,
+        },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: prompt }],
+          model: settings?.ai_model || "google/gemini-3-flash-preview",
+          provider,
+          custom_endpoint: settings?.ai_endpoint_url || undefined,
+          custom_api_key: settings?.ai_api_key || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`AI error (${response.status}): ${errText.substring(0, 200)}`);
+      }
+
+      // Stream response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+      const decoder = new TextDecoder();
+      let buffer = "", fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith("data: ")) continue;
+          const d = t.slice(6);
+          if (d === "[DONE]") continue;
+          try {
+            const p = JSON.parse(d);
+            const delta = p.choices?.[0]?.delta?.content;
+            if (delta) { fullText += delta; setStreamedSummary(fullText); }
+          } catch {}
+        }
+      }
+
+      // Save to session
+      if (fullText) {
+        await supabase
+          .from("risk_assessment_sessions")
+          .update({ ai_summary: fullText })
+          .eq("id", session.id);
+        setSession((prev: any) => ({ ...prev, ai_summary: fullText }));
+        toast({ title: "AI summary generated" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error generating summary", description: err.message, variant: "destructive" });
+    }
+    setGeneratingSummary(false);
+  };
+
   const handleSubmit = async () => {
     setSaving(true);
     try {
