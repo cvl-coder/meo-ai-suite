@@ -37,7 +37,8 @@ const getCards: ActionCard[] = [
   { action: "getAdminInvites", title: "Get Admin Invites", description: "List pending admin invites." },
   { action: "getCases", title: "Get Cases", description: "Fetch cases for the selected customer." },
   { action: "getCase", title: "Get Case", description: "Fetch one case in detail." },
-  { action: "getRiskAssessments", title: "Get Risk Assessments", description: "Fetch risk assessments for the selected case." },
+  { action: "getRiskAssessments", title: "Get Case Risk Assessments", description: "Fetch risk assessments for the selected case." },
+  { action: "getEntityRiskAssessments", title: "Get Entity Risk Assessments", description: "Fetch risk assessments for a specific entity." },
   { action: "getEntityCustomProperties", title: "Get Entity Custom Properties", description: "Fetch custom properties for one entity." },
   { action: "getEntityUserdata", title: "Get Entity Documents", description: "Fetch uploaded entity userdata/documents." },
 ];
@@ -329,6 +330,7 @@ export default function ApiTest() {
       case "getCases": return { customerId, page: 1, personToken, limit: 10, statuses: ["Open", "Approved", "Rejected"] };
       case "getCase": return { caseId, customerId, personToken };
       case "getRiskAssessments": return { caseId, customerId, personToken, page: 1, limit: 100, orderColumn: "createdAt", orderDirection: "desc" };
+      case "getEntityRiskAssessments": return { customerId, entityId, personToken, page: 1, limit: 100, orderColumn: "createdAt", orderDirection: "desc" };
       case "getEntityCustomProperties": return { customerId, entityId, personToken, page: 1, limit: 100 };
       case "getEntityUserdata": return { customerId, entityId, personToken };
       default: return {};

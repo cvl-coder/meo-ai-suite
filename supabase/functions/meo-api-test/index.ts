@@ -460,6 +460,22 @@ async function handleAction(action: string, payload: Record<string, any>) {
         },
       });
     }
+    case "getEntityRiskAssessments": {
+      requireFields(payload, ["personToken", "customerId", "entityId"]);
+      const params = new URLSearchParams({
+        page: String(payload.page || 1),
+        limit: String(payload.limit || 100),
+        orderColumn: payload.orderColumn || "createdAt",
+        orderDirection: payload.orderDirection || "desc",
+      });
+      return meoRest(`${MEO_REST_BASE}/entities/${payload.entityId}/risk-assessments?${params.toString()}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${payload.personToken}`,
+          "X-Customer-Id": payload.customerId,
+        },
+      });
+    }
     case "getCheckData": {
       requireFields(payload, ["personToken", "customerId", "caseId", "checkId"]);
       return meoRest(`${MEO_REST_BASE}/cases/${payload.caseId}/checks/${payload.checkId}/data`, {
