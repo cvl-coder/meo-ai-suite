@@ -44,13 +44,17 @@ serve(async (req) => {
     console.log(`Chat request: provider=${provider}, model=${modelName}, endpoint=${endpoint}`);
 
     let response: Response;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
     try {
       response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           model: modelName || undefined,
           messages,
