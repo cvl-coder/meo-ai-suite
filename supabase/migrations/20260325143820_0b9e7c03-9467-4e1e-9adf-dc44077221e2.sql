@@ -1,0 +1,1 @@
+ALTER TABLE public.risk_assessment_questions ADD COLUMN question_type TEXT NOT NULL DEFAULT 'single_select';

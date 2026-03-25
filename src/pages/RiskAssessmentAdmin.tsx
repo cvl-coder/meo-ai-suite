@@ -32,6 +32,7 @@ type Question = {
   sort_order: number;
   enabled: boolean;
   ai_prompt_template: string;
+  question_type: string;
 };
 
 type SettingsData = {
@@ -70,6 +71,7 @@ export default function RiskAssessmentAdmin() {
     sort_order: 0,
     enabled: true,
     ai_prompt_template: "",
+    question_type: "single_select",
   });
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
   const [savingQuestion, setSavingQuestion] = useState(false);
@@ -118,14 +120,14 @@ export default function RiskAssessmentAdmin() {
 
   const openAddDialog = () => {
     setEditingQuestion(null);
-    setFormData({ category: "", question_text: "", description: "", max_score: 5, weight: 1.0, sort_order: questions.length, enabled: true, ai_prompt_template: "" });
+    setFormData({ category: "", question_text: "", description: "", max_score: 5, weight: 1.0, sort_order: questions.length, enabled: true, ai_prompt_template: "", question_type: "single_select" });
     setAnswerOptions([]);
     setShowAddDialog(true);
   };
 
   const openEditDialog = async (q: Question) => {
     setEditingQuestion(q);
-    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, weight: q.weight, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "" });
+    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, weight: q.weight, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "", question_type: q.question_type || "single_select" });
     
     // Load existing answer options
     const { data } = await supabase
@@ -159,9 +161,11 @@ export default function RiskAssessmentAdmin() {
     }
     setSavingQuestion(true);
 
-    // Derive max_score from answer options if they exist
+    // Derive max_score: for multi_select sum all scores, for single_select take highest
     const derivedMaxScore = answerOptions.length > 0
-      ? Math.max(...answerOptions.map((o) => o.score), 0)
+      ? (formData.question_type === "multi_select"
+        ? answerOptions.reduce((sum, o) => sum + o.score, 0)
+        : Math.max(...answerOptions.map((o) => o.score), 0))
       : formData.max_score;
 
     const questionPayload = { ...formData, max_score: derivedMaxScore };
@@ -280,7 +284,8 @@ export default function RiskAssessmentAdmin() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{q.question_text}</p>
                         <div className="flex gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
+                        <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
+                          <Badge variant="secondary" className="text-xs">{q.question_type === "multi_select" ? "Multi" : "Single"}</Badge>
                           <Badge variant="secondary" className="text-xs">Max: {q.max_score}</Badge>
                           {q.weight !== 1 && <Badge variant="secondary" className="text-xs">×{q.weight}</Badge>}
                         </div>
@@ -448,10 +453,22 @@ export default function RiskAssessmentAdmin() {
               <Label>Description</Label>
               <Textarea value={formData.description} onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))} placeholder="Help text for the assessor..." className="h-16" />
             </div>
-            <div className="grid gap-4 grid-cols-2">
+            <div className="grid gap-4 grid-cols-3">
               <div className="space-y-2">
                 <Label>Category</Label>
                 <Input value={formData.category} onChange={(e) => setFormData((p) => ({ ...p, category: e.target.value }))} placeholder="e.g. KYC, PEP, Sanctions" />
+              </div>
+              <div className="space-y-2">
+                <Label>Answer Type</Label>
+                <Select value={formData.question_type} onValueChange={(v) => setFormData((p) => ({ ...p, question_type: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single_select">Single Select</SelectItem>
+                    <SelectItem value="multi_select">Multi Select</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Weight Multiplier</Label>
@@ -489,6 +506,9 @@ export default function RiskAssessmentAdmin() {
               {answerOptions.length === 0 ? (
                 <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
                   No answer options defined. Users will see a slider (0 to max score) instead.
+                  {formData.question_type === "multi_select" && (
+                    <p className="mt-1 text-xs font-medium text-primary">Multi-select: the score will be the sum of all selected options.</p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -517,7 +537,9 @@ export default function RiskAssessmentAdmin() {
                     </div>
                   ))}
                   <p className="text-xs text-muted-foreground">
-                    Max score will be auto-derived from the highest option score ({Math.max(...answerOptions.map(o => o.score), 0)}).
+                    {formData.question_type === "multi_select"
+                      ? `Max score (sum of all options): ${answerOptions.reduce((s, o) => s + o.score, 0)}`
+                      : `Max score (highest option): ${Math.max(...answerOptions.map(o => o.score), 0)}`}
                   </p>
                 </div>
               )}

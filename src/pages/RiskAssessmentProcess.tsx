@@ -30,6 +30,7 @@ type Question = {
   weight: number;
   sort_order: number;
   ai_prompt_template: string;
+  question_type: string;
 };
 
 type Answer = {
@@ -37,6 +38,7 @@ type Answer = {
   score: number;
   notes: string;
   selected_option_label?: string;
+  selected_option_labels?: string[];
 };
 
 const riskLevelConfig = {
@@ -93,15 +95,35 @@ export default function RiskAssessmentProcess() {
         }
         const answerMap: Record<string, Answer> = {};
         ((answersRes.data as any[]) || []).forEach((a) => {
-          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "", selected_option_label: a.notes?.startsWith("[") ? undefined : undefined };
+          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "" };
         });
         
-        // Reconstruct selected_option_label from score + options
+        // Reconstruct selected options from score + options
+        const loadedQuestions = (questionsRes.data as any[]) || [];
         for (const qId of Object.keys(answerMap)) {
           const opts = optMap[qId];
+          const q = loadedQuestions.find((qq: any) => qq.id === qId);
           if (opts?.length) {
-            const matchingOpt = opts.find(o => o.score === answerMap[qId].score);
-            if (matchingOpt) answerMap[qId].selected_option_label = matchingOpt.label;
+            if (q?.question_type === "multi_select") {
+              // For multi-select, find combination of options that sum to the score
+              // Simple approach: try all options and find those selected
+              const selectedLabels: string[] = [];
+              let remaining = answerMap[qId].score;
+              for (const o of [...opts].sort((a, b) => b.score - a.score)) {
+                if (remaining >= o.score && o.score > 0) {
+                  selectedLabels.push(o.label);
+                  remaining -= o.score;
+                }
+              }
+              answerMap[qId].selected_option_labels = selectedLabels;
+              answerMap[qId].selected_option_label = selectedLabels.join(", ");
+            } else {
+              const matchingOpt = opts.find(o => o.score === answerMap[qId].score);
+              if (matchingOpt) {
+                answerMap[qId].selected_option_label = matchingOpt.label;
+                answerMap[qId].selected_option_labels = [matchingOpt.label];
+              }
+            }
           }
         }
         
@@ -123,8 +145,29 @@ export default function RiskAssessmentProcess() {
     }));
   };
 
-  const selectAnswerOption = (questionId: string, option: AnswerOption) => {
-    updateAnswer(questionId, { score: option.score, selected_option_label: option.label });
+  const selectAnswerOption = (question: Question, option: AnswerOption) => {
+    if (question.question_type === "multi_select") {
+      const current = getAnswer(question.id);
+      const currentLabels = current.selected_option_labels || [];
+      const isSelected = currentLabels.includes(option.label);
+      const newLabels = isSelected
+        ? currentLabels.filter((l) => l !== option.label)
+        : [...currentLabels, option.label];
+      
+      // Sum scores of all selected options
+      const options = answerOptionsByQuestion[question.id] || [];
+      const newScore = options
+        .filter((o) => newLabels.includes(o.label))
+        .reduce((sum, o) => sum + o.score, 0);
+      
+      updateAnswer(question.id, {
+        score: newScore,
+        selected_option_labels: newLabels,
+        selected_option_label: newLabels.join(", "),
+      });
+    } else {
+      updateAnswer(question.id, { score: option.score, selected_option_label: option.label, selected_option_labels: [option.label] });
+    }
   };
 
   const calculateScores = useCallback(() => {
@@ -587,18 +630,26 @@ export default function RiskAssessmentProcess() {
                             /* Answer option buttons — score is hidden from user */
                             <div className="grid gap-2">
                               {options.map((opt) => {
-                                const isSelected = answer.selected_option_label === opt.label;
+                                const isMulti = q.question_type === "multi_select";
+                                const isSelected = isMulti
+                                  ? (answer.selected_option_labels || []).includes(opt.label)
+                                  : answer.selected_option_label === opt.label;
                                 return (
                                   <button
                                     key={opt.id}
                                     type="button"
-                                    onClick={() => selectAnswerOption(q.id, opt)}
-                                    className={`w-full text-left rounded-lg border-2 px-4 py-3 text-sm transition-colors ${
+                                    onClick={() => selectAnswerOption(q, opt)}
+                                    className={`w-full text-left rounded-lg border-2 px-4 py-3 text-sm transition-colors flex items-center gap-3 ${
                                       isSelected
                                         ? "border-primary bg-primary/5 font-medium"
                                         : "border-border hover:border-primary/40 hover:bg-muted/50"
                                     }`}
                                   >
+                                    {isMulti && (
+                                      <span className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border ${isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground"}`}>
+                                        {isSelected && <span className="text-[10px]">✓</span>}
+                                      </span>
+                                    )}
                                     {opt.label}
                                   </button>
                                 );
