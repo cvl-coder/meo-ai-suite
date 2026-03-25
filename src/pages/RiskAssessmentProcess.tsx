@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { getMeoToken } from "@/lib/meoToken";
+import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 type Question = {
