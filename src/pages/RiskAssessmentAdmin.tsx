@@ -332,10 +332,19 @@ export default function RiskAssessmentAdmin() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm">Output Language</Label>
-                    <Input
+                    <Select
                       value={settings?.output_language ?? "English"}
-                      onChange={(e) => settings && setSettings({ ...settings, output_language: e.target.value })}
-                    />
+                      onValueChange={(v) => settings && setSettings({ ...settings, output_language: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["English", "Danish", "Norwegian", "Swedish", "German", "French", "Spanish", "Portuguese", "Italian", "Dutch", "Finnish", "Polish"].map((lang) => (
+                          <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-2">

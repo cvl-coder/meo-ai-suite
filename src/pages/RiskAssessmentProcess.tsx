@@ -126,10 +126,11 @@ export default function RiskAssessmentProcess() {
       });
 
       const currentAnswer = getAnswer(question.id);
+      const outputLang = settings?.output_language || "English";
       const defaultPrompt = 
-        "You are a risk assessment analyst. Based on the following risk question and assessment context, write a concise risk analysis note (2-4 sentences) for this specific question.\n\n" +
-        "Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\nAll assessment answers for context:\n{{all_answers}}\n\n" +
-        "Write a brief, professional note analyzing the risk factor for this specific question.";
+        `You are a risk assessment analyst. Based on the following risk question and assessment context, write a concise risk analysis note (2-4 sentences) for this specific question.\n\n` +
+        `Question: {{question}}\nCurrent Score: {{score}} / {{max_score}}\n\nAll assessment answers for context:\n{{all_answers}}\n\n` +
+        `Write a brief, professional note analyzing the risk factor for this specific question. IMPORTANT: Write your response in ${outputLang}.`;
 
       const prompt = (question.ai_prompt_template || defaultPrompt)
         .replace(/\{\{question\}\}/g, question.question_text)
