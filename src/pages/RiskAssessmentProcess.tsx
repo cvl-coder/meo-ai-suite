@@ -205,20 +205,27 @@ export default function RiskAssessmentProcess() {
         `Do NOT repeat or echo the input data, scores, or question text back. Just provide your analysis. ` +
         `IMPORTANT: Always write your response in ${outputLang}.`;
 
+      const questionDescription = question.description || "";
+
       const defaultUserPrompt =
         `Write a concise risk analysis note for this question:\n\n` +
-        `Question: {{question}}\nSelected Answer: {{selected_answer}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
+        `Question: {{question}}\n` +
+        (questionDescription ? `Background: {{description}}\n` : ``) +
+        `Selected Answer: {{selected_answer}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
         `Provide only your professional risk analysis.`;
 
       let userPrompt = (question.ai_prompt_template || defaultUserPrompt)
         .replace(/\{\{question\}\}/g, question.question_text)
+        .replace(/\{\{description\}\}/g, questionDescription)
         .replace(/\{\{score\}\}/g, String(currentAnswer.score))
         .replace(/\{\{max_score\}\}/g, String(question.max_score))
         .replace(/\{\{selected_answer\}\}/g, selectedLabel)
         .replace(/\{\{all_answers\}\}/g, "");
 
       // Always append factual context so the AI never hallucinates
-      const factBlock = `\n\n--- Factual Context (use ONLY this data) ---\nQuestion: ${question.question_text}\nSelected Answer: ${selectedLabel}\nScore: ${currentAnswer.score} / ${question.max_score}\nNotes: ${currentAnswer.notes || "(none)"}`;
+      const factBlock = `\n\n--- Factual Context (use ONLY this data) ---\nQuestion: ${question.question_text}` +
+        (questionDescription ? `\nBackground: ${questionDescription}` : ``) +
+        `\nSelected Answer: ${selectedLabel}\nScore: ${currentAnswer.score} / ${question.max_score}\nNotes: ${currentAnswer.notes || "(none)"}`;
       userPrompt += factBlock;
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
