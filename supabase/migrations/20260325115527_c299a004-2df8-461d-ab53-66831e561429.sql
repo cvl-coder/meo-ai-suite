@@ -1,0 +1,1 @@
+ALTER TABLE public.risk_assessment_questions ADD COLUMN ai_prompt_template text NOT NULL DEFAULT '';
