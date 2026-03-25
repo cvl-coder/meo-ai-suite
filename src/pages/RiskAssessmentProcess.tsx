@@ -202,15 +202,21 @@ export default function RiskAssessmentProcess() {
       const outputLang = settings?.output_language || "English";
       const selectedLabel = currentAnswer.selected_option_label || "(no selection)";
 
+      // Build system prompt: global template from settings + hardcoded rules
+      const globalPrompt = settings?.ai_prompt_template?.trim()
+        ? settings.ai_prompt_template.trim()
+        : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
+
       const systemMessage =
-        `You are a senior AML/KYC compliance analyst writing internal risk assessment notes. ` +
+        `${globalPrompt}\n\n` +
         `Rules:\n` +
         `- Write exactly 2-4 sentences of professional risk analysis.\n` +
         `- Do NOT repeat the question, score, or selected answer back.\n` +
         `- Do NOT mix languages. Write ENTIRELY in ${outputLang} — every single word.\n` +
         `- Use proper ${outputLang} grammar and spelling. If ${outputLang} is "Danish", write only Danish (not Norwegian, Swedish, or any other language).\n` +
         `- Base your analysis strictly on the provided factual context.\n` +
-        `- Focus on the risk implications of the selected answer.`;
+        `- Focus on the risk implications of the selected answer.` +
+        (question.ai_prompt_template?.trim() ? `\n\nAdditional instructions for this question:\n${question.ai_prompt_template.trim()}` : ``);
 
       const questionDescription = question.description || "";
 
@@ -221,7 +227,7 @@ export default function RiskAssessmentProcess() {
         `Selected Answer: {{selected_answer}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
         `Provide only your professional risk analysis.`;
 
-      let userPrompt = (question.ai_prompt_template || defaultUserPrompt)
+      let userPrompt = defaultUserPrompt
         .replace(/\{\{question\}\}/g, question.question_text)
         .replace(/\{\{description\}\}/g, questionDescription)
         .replace(/\{\{score\}\}/g, String(currentAnswer.score))
