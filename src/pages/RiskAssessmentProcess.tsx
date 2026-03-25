@@ -628,9 +628,6 @@ export default function RiskAssessmentProcess() {
                         <CardContent className="pt-6 space-y-4">
                           <div className="space-y-1">
                             <Label className="text-sm font-medium">{q.question_text}</Label>
-                            {q.description && (
-                              <p className="text-xs text-muted-foreground">{q.description}</p>
-                            )}
                           </div>
 
                           {hasOptions ? (
