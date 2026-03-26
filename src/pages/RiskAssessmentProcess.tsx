@@ -213,17 +213,21 @@ export default function RiskAssessmentProcess() {
         `- Do NOT mix languages. Write ENTIRELY in ${outputLang} — every single word.\n` +
         `- Use proper ${outputLang} grammar and spelling. If ${outputLang} is "Danish", write only Danish (not Norwegian, Swedish, or any other language).\n` +
         `- Base your analysis strictly on the provided factual context.\n` +
-        `- Focus on the risk implications of the selected answer.` +
-        (question.ai_prompt_template?.trim() ? `\n\nAdditional instructions for this question:\n${question.ai_prompt_template.trim()}` : ``);
+        `- Focus on the risk implications of the selected answer.`;
 
       const questionDescription = question.description || "";
+
+      const questionSpecificInstructions = question.ai_prompt_template?.trim()
+        ? `\n\n**IMPORTANT — You MUST follow these additional instructions:**\n${question.ai_prompt_template.trim()}\n`
+        : ``;
 
       const defaultUserPrompt =
         `Write a concise risk analysis note for this question:\n\n` +
         `Question: {{question}}\n` +
         (questionDescription ? `Background: {{description}}\n` : ``) +
-        `Selected Answer: {{selected_answer}}\nCurrent Score: {{score}} / {{max_score}}\n\n` +
-        `Provide only your professional risk analysis.`;
+        `Selected Answer: {{selected_answer}}\nCurrent Score: {{score}} / {{max_score}}\n` +
+        questionSpecificInstructions +
+        `\nProvide only your professional risk analysis.`;
 
       let userPrompt = defaultUserPrompt
         .replace(/\{\{question\}\}/g, question.question_text)
