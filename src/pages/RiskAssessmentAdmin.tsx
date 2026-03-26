@@ -451,7 +451,7 @@ export default function RiskAssessmentAdmin() {
               <Input value={formData.question_text} onChange={(e) => setFormData((p) => ({ ...p, question_text: e.target.value }))} placeholder="e.g. What is the PEP exposure level?" />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>Internal Support Text</Label>
               <Textarea value={formData.description} onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))} placeholder="Help text for the assessor..." className="h-16" />
             </div>
             <div className="space-y-2">
