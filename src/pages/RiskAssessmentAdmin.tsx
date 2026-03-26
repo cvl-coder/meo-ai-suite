@@ -443,6 +443,10 @@ export default function RiskAssessmentAdmin() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
+              <Label>Category</Label>
+              <Input value={formData.category} onChange={(e) => setFormData((p) => ({ ...p, category: e.target.value }))} placeholder="e.g. KYC, PEP, Sanctions" />
+            </div>
+            <div className="space-y-2">
               <Label>Question Text</Label>
               <Input value={formData.question_text} onChange={(e) => setFormData((p) => ({ ...p, question_text: e.target.value }))} placeholder="e.g. What is the PEP exposure level?" />
             </div>
@@ -450,37 +454,25 @@ export default function RiskAssessmentAdmin() {
               <Label>Description</Label>
               <Textarea value={formData.description} onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))} placeholder="Help text for the assessor..." className="h-16" />
             </div>
-            <div className="grid gap-4 grid-cols-3">
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Input value={formData.category} onChange={(e) => setFormData((p) => ({ ...p, category: e.target.value }))} placeholder="e.g. KYC, PEP, Sanctions" />
-              </div>
-              <div className="space-y-2">
-                <Label>Answer Type</Label>
-                <Select value={formData.question_type} onValueChange={(v) => setFormData((p) => ({ ...p, question_type: v }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single_select">Single Select</SelectItem>
-                    <SelectItem value="multi_select">Multi Select</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Answer Type</Label>
+              <Select value={formData.question_type} onValueChange={(v) => setFormData((p) => ({ ...p, question_type: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single_select">Single Select</SelectItem>
+                  <SelectItem value="multi_select">Multi Select</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid gap-4 grid-cols-2">
+            {answerOptions.length === 0 && (
               <div className="space-y-2">
-                <Label>Sort Order</Label>
-                <Input type="number" value={formData.sort_order} onChange={(e) => setFormData((p) => ({ ...p, sort_order: Number(e.target.value) }))} />
+                <Label>Max Score (manual)</Label>
+                <Input type="number" value={formData.max_score} onChange={(e) => setFormData((p) => ({ ...p, max_score: Number(e.target.value) }))} min={1} max={100} />
+                <p className="text-xs text-muted-foreground">Used as fallback slider if no answer options are defined.</p>
               </div>
-              {answerOptions.length === 0 && (
-                <div className="space-y-2">
-                  <Label>Max Score (manual)</Label>
-                  <Input type="number" value={formData.max_score} onChange={(e) => setFormData((p) => ({ ...p, max_score: Number(e.target.value) }))} min={1} max={100} />
-                  <p className="text-xs text-muted-foreground">Used as fallback slider if no answer options are defined.</p>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Answer Options */}
             <div className="space-y-3">
