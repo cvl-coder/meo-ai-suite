@@ -206,10 +206,10 @@ export default function RiskAssessmentProcess() {
         : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
 
       // Remove lines that hardcode a language so the dropdown is the single source of truth
-      const languageKeywords = /\b(language:\s*(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français))\b/gi;
+      const languageLinePattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
       const cleanedGlobalPrompt = rawGlobalPrompt
         .split("\n")
-        .filter((line) => !languageKeywords.test(line))
+        .filter((line) => !languageLinePattern.test(line))
         .join("\n");
 
       const systemMessage =
@@ -352,10 +352,10 @@ export default function RiskAssessmentProcess() {
         "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.";
       
       // Strip hardcoded language lines from global prompt for summary too
-      const summaryLangKeywords = /\b(language:\s*(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français))\b/gi;
+      const summaryLangPattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
       const cleanedSummaryPrompt = rawSummaryPrompt
         .split("\n")
-        .filter((line) => !summaryLangKeywords.test(line))
+        .filter((line) => !summaryLangPattern.test(line))
         .join("\n");
 
       const promptTemplate =
