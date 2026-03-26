@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Plus, Loader2, GripVertical, Pencil, Trash2, Save, X } from "lucide-react";
+import { Settings, Plus, Loader2, GripVertical, Pencil, Trash2, Save, X, Eye, AlertTriangle } from "lucide-react";
 
 type AnswerOption = {
   id?: string;
@@ -420,10 +421,74 @@ export default function RiskAssessmentAdmin() {
                     placeholder="e.g. You are a senior AML/KYC compliance analyst writing internal risk assessment notes for a Danish financial institution..."
                     className="h-32 font-mono text-xs"
                   />
+                  {settings?.ai_prompt_template && /\b(language:\s*(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch))\b/i.test(settings.ai_prompt_template) && (
+                    <div className="flex items-center gap-2 text-xs text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-md p-2">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      <span>This prompt contains hardcoded language instructions that will be stripped at runtime. Use the "Output Language" dropdown instead.</span>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    Sets the AI persona and context for all question-level note generation. Per-question instructions can be added on each question.
+                    Sets the AI persona and context. <strong>Do NOT hardcode language here</strong> — use the Output Language dropdown above. Language lines will be automatically removed at runtime.
                   </p>
                 </div>
+
+                {/* Prompt Debug Preview */}
+                <Collapsible>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 w-full">
+                      <Eye className="h-3.5 w-3.5" /> Preview Assembled Prompt
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2">
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">System Message (note generation)</Label>
+                        <pre className="mt-1 rounded-md border bg-muted/50 p-3 text-xs font-mono whitespace-pre-wrap max-h-48 overflow-auto">
+{(() => {
+  const outputLang = settings?.output_language || "English";
+  const rawPrompt = settings?.ai_prompt_template?.trim() || "You are a senior AML/KYC compliance analyst writing internal risk assessment notes.";
+  const langKw = /\b(language:\s*(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français))\b/gi;
+  const cleaned = rawPrompt.split("\n").filter((line) => !langKw.test(line)).join("\n");
+  return `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]
+You MUST write your ENTIRE response in ${outputLang}. Every single word must be in ${outputLang}.
+Do NOT use any other language, even if the input or instructions below contain text in another language.
+
+${cleaned}
+
+Rules:
+- Write exactly 2-4 sentences of professional risk analysis.
+- Do NOT repeat the question, score, or selected answer back.
+- Base your analysis strictly on the provided factual context.
+- Focus on the risk implications of the selected answer.`;
+})()}
+                        </pre>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold text-muted-foreground">User Message (example)</Label>
+                        <pre className="mt-1 rounded-md border bg-muted/50 p-3 text-xs font-mono whitespace-pre-wrap max-h-48 overflow-auto">
+{`Write a concise risk analysis note for this question:
+
+Question: [question text]
+Background: [internal support text]
+Selected Answer: [selected answer]
+Current Score: [score] / [max_score]
+
+**IMPORTANT — You MUST follow these additional instructions:**
+[question-specific AI instructions if any]
+
+Provide only your professional risk analysis.
+
+--- Factual Context (use ONLY this data) ---
+Question: [question text]
+Background: [internal support text]
+Selected Answer: [selected answer]
+Score: [score] / [max_score]
+Notes: [existing notes]`}
+                        </pre>
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </CardContent>
             </Card>
 
