@@ -28,7 +28,6 @@ type Question = {
   question_text: string;
   description: string;
   max_score: number;
-  weight: number;
   sort_order: number;
   enabled: boolean;
   ai_prompt_template: string;
@@ -67,7 +66,6 @@ export default function RiskAssessmentAdmin() {
     question_text: "",
     description: "",
     max_score: 5,
-    weight: 1.0,
     sort_order: 0,
     enabled: true,
     ai_prompt_template: "",
@@ -120,14 +118,14 @@ export default function RiskAssessmentAdmin() {
 
   const openAddDialog = () => {
     setEditingQuestion(null);
-    setFormData({ category: "", question_text: "", description: "", max_score: 5, weight: 1.0, sort_order: questions.length, enabled: true, ai_prompt_template: "", question_type: "single_select" });
+    setFormData({ category: "", question_text: "", description: "", max_score: 5, sort_order: questions.length, enabled: true, ai_prompt_template: "", question_type: "single_select" });
     setAnswerOptions([]);
     setShowAddDialog(true);
   };
 
   const openEditDialog = async (q: Question) => {
     setEditingQuestion(q);
-    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, weight: q.weight, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "", question_type: q.question_type || "single_select" });
+    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "", question_type: q.question_type || "single_select" });
     
     // Load existing answer options
     const { data } = await supabase
@@ -287,7 +285,6 @@ export default function RiskAssessmentAdmin() {
                         <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
                           <Badge variant="secondary" className="text-xs">{q.question_type === "multi_select" ? "Multi" : "Single"}</Badge>
                           <Badge variant="secondary" className="text-xs">Max: {q.max_score}</Badge>
-                          {q.weight !== 1 && <Badge variant="secondary" className="text-xs">×{q.weight}</Badge>}
                         </div>
                       </div>
                       <Switch checked={q.enabled} onCheckedChange={(v) => toggleQuestion(q.id, v)} />
@@ -469,10 +466,6 @@ export default function RiskAssessmentAdmin() {
                     <SelectItem value="multi_select">Multi Select</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Weight Multiplier</Label>
-                <Input type="number" step="0.1" value={formData.weight} onChange={(e) => setFormData((p) => ({ ...p, weight: Number(e.target.value) }))} min={0.1} />
               </div>
             </div>
             <div className="grid gap-4 grid-cols-2">

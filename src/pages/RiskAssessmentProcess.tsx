@@ -27,7 +27,6 @@ type Question = {
   question_text: string;
   description: string;
   max_score: number;
-  weight: number;
   sort_order: number;
   ai_prompt_template: string;
   question_type: string;
@@ -177,9 +176,8 @@ export default function RiskAssessmentProcess() {
     let maxPossible = 0;
     questions.forEach((q) => {
       const answer = answers[q.id];
-      const score = (answer?.score || 0) * q.weight;
-      totalScore += score;
-      maxPossible += q.max_score * q.weight;
+      totalScore += answer?.score || 0;
+      maxPossible += q.max_score;
     });
     return { totalScore, maxPossible };
   }, [answers, questions]);
@@ -329,9 +327,6 @@ export default function RiskAssessmentProcess() {
           selectedAnswer: a.selected_option_label || `Score ${a.score}`,
           score: a.score,
           maxScore: q.max_score,
-          weight: q.weight,
-          weightedScore: a.score * q.weight,
-          maxWeightedScore: q.max_score * q.weight,
           notes: a.notes || "",
         };
       });
@@ -582,8 +577,6 @@ export default function RiskAssessmentProcess() {
             <CardContent className="space-y-3">
               {questions.map((q) => {
                 const a = getAnswer(q.id);
-                const weighted = a.score * q.weight;
-                const qMax = q.max_score * q.weight;
                 return (
                   <div key={q.id} className="flex items-center justify-between rounded-md border p-3">
                     <div className="flex-1 min-w-0">
@@ -595,7 +588,7 @@ export default function RiskAssessmentProcess() {
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       <Badge variant={a.score === 0 ? "secondary" : a.score >= q.max_score * 0.7 ? "destructive" : "default"}>
-                        {weighted.toFixed(1)} / {qMax.toFixed(1)}
+                        {a.score} / {q.max_score}
                       </Badge>
                     </div>
                   </div>
