@@ -200,18 +200,27 @@ export default function RiskAssessmentProcess() {
       const outputLang = settings?.output_language || "English";
       const selectedLabel = currentAnswer.selected_option_label || "(no selection)";
 
-      // Build system prompt: global template from settings + hardcoded rules
-      const globalPrompt = settings?.ai_prompt_template?.trim()
+      // Build system prompt: strip any hardcoded language from the global template
+      const rawGlobalPrompt = settings?.ai_prompt_template?.trim()
         ? settings.ai_prompt_template.trim()
         : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
 
+      // Remove lines that hardcode a language so the dropdown is the single source of truth
+      const languageKeywords = /\b(language:\s*(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français))\b/gi;
+      const cleanedGlobalPrompt = rawGlobalPrompt
+        .split("\n")
+        .filter((line) => !languageKeywords.test(line))
+        .join("\n");
+
       const systemMessage =
-        `${globalPrompt}\n\n` +
+        `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
+        `You MUST write your ENTIRE response in ${outputLang}. Every single word must be in ${outputLang}.\n` +
+        `Do NOT use any other language, even if the input or instructions below contain text in another language.\n` +
+        `If ${outputLang} is "Danish", use proper Danish (not Norwegian or Swedish). If "English", use proper English.\n\n` +
+        `${cleanedGlobalPrompt}\n\n` +
         `Rules:\n` +
         `- Write exactly 2-4 sentences of professional risk analysis.\n` +
         `- Do NOT repeat the question, score, or selected answer back.\n` +
-        `- Do NOT mix languages. Write ENTIRELY in ${outputLang} — every single word.\n` +
-        `- Use proper ${outputLang} grammar and spelling. If ${outputLang} is "Danish", write only Danish (not Norwegian, Swedish, or any other language).\n` +
         `- Base your analysis strictly on the provided factual context.\n` +
         `- Focus on the risk implications of the selected answer.`;
 
@@ -339,12 +348,24 @@ export default function RiskAssessmentProcess() {
       const pct = mp > 0 ? (ts / mp) * 100 : 0;
 
       const summaryLang = settings?.output_language || "English";
-      const promptTemplate = settings?.ai_prompt_template ||
-        "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.\n\n" +
+      const rawSummaryPrompt = settings?.ai_prompt_template ||
+        "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.";
+      
+      // Strip hardcoded language lines from global prompt for summary too
+      const summaryLangKeywords = /\b(language:\s*(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français))\b/gi;
+      const cleanedSummaryPrompt = rawSummaryPrompt
+        .split("\n")
+        .filter((line) => !summaryLangKeywords.test(line))
+        .join("\n");
+
+      const promptTemplate =
+        `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
+        `You MUST write your ENTIRE response in ${summaryLang}. Every single word must be in ${summaryLang}.\n\n` +
+        `${cleanedSummaryPrompt}\n\n` +
         "## Internal Risk Assessment Scores\n{{scored_answers}}\n\n" +
         "## Overall Result\nTotal Score: {{total_score}} / {{max_score}} ({{percentage}}%)\nRisk Level: {{risk_level}}\n\n" +
         "{{case_risk_section}}" +
-        `Provide a clear summary of the risk factors, highlighting the most significant findings and recommendations. IMPORTANT: Write your entire response in ${summaryLang}.`;
+        `Provide a clear summary of the risk factors, highlighting the most significant findings and recommendations.`;
 
       const caseRiskSection = caseRiskData
         ? `## Case Risk Assessment Data (from MEO)\n${JSON.stringify(caseRiskData, null, 2)}\n\n`
