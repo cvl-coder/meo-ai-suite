@@ -348,10 +348,20 @@ export default function RiskAssessmentProcess() {
         .filter((line) => !summaryLangPattern.test(line))
         .join("\n");
 
-      const prompt =
+      const systemMessage =
         `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
-        `You MUST write your ENTIRE response in ${summaryLang}. Every single word must be in ${summaryLang}.\n\n` +
+        `You MUST write your ENTIRE response in ${summaryLang}. Every single word must be in ${summaryLang}.\n` +
+        `Do NOT use any other language, even if the input data or notes below contain text in another language.\n` +
+        `If ${summaryLang} is "Danish", use proper Danish. If "English", use proper English.\n\n` +
         `${cleanedSummaryPrompt}\n\n` +
+        `Rules:\n` +
+        `- Write a structured risk assessment summary in ${summaryLang}.\n` +
+        `- Use Markdown formatting with clear headings.\n` +
+        `- Base your analysis strictly on the provided data.\n` +
+        `- Do NOT invent facts not present in the data.`;
+
+      const userMessage =
+        `Analyze the following risk assessment and provide a summary in ${summaryLang}.\n\n` +
         `## Risk Assessment Data\n\n` +
         `### Overall Result\n` +
         `Total Score: ${ts.toFixed(1)} / ${mp.toFixed(1)} (${pct.toFixed(0)}%)\n` +
@@ -368,7 +378,8 @@ export default function RiskAssessmentProcess() {
         `1. Overall risk assessment conclusion\n` +
         `2. Key risk factors identified\n` +
         `3. Areas of concern or gaps\n` +
-        `4. Recommended actions\n`;
+        `4. Recommended actions\n` +
+        `\nREMINDER: Write ENTIRELY in ${summaryLang}.`;
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -383,7 +394,10 @@ export default function RiskAssessmentProcess() {
           Authorization: `Bearer ${authSession?.access_token || supabaseKey}`,
         },
         body: JSON.stringify({
-          messages: [{ role: "user", content: prompt }],
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: userMessage },
+          ],
           model: settings?.ai_model || "llama3.1:latest",
           provider,
           custom_endpoint: settings?.ai_endpoint_url || "http://core.meo.io/v1",
