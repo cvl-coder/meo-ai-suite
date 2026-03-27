@@ -393,6 +393,7 @@ export default function RiskAssessmentAdmin() {
                       <SelectContent>
                         <SelectItem value="llama3.1:latest">llama3.1:latest</SelectItem>
                         <SelectItem value="mistral-nemo:latest">mistral-nemo:latest</SelectItem>
+                        <SelectItem value="gemma2:9b">gemma2:9b</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
