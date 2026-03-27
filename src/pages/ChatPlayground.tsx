@@ -153,7 +153,16 @@ export default function ChatPlayground() {
                 </div>
                 <div className="space-y-2">
                   <Label>Model</Label>
-                  <Input value={customModel} onChange={(e) => setCustomModel(e.target.value)} placeholder="e.g. llama3.1:latest" />
+                  <Select value={customModel} onValueChange={setCustomModel}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="llama3.1:latest">llama3.1:latest</SelectItem>
+                      <SelectItem value="mistral-nemo:latest">mistral-nemo:latest</SelectItem>
+                      <SelectItem value="gemma2:9b">gemma2:9b</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>System Prompt</Label>
