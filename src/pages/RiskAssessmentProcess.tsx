@@ -322,22 +322,13 @@ export default function RiskAssessmentProcess() {
     setStreamedSummary("");
 
     try {
-      let caseRiskData: any = null;
-      if (meoToken && customerId && caseId) {
-        try {
-          const { data, error } = await supabase.functions.invoke("meo-api-test", {
-            body: { action: "getRiskAssessments", payload: { caseId, customerId, personToken: meoToken, page: 1, limit: 100, orderColumn: "createdAt", orderDirection: "desc" } },
-          });
-          if (!error && data && !data.error) caseRiskData = data;
-        } catch {}
-      }
-
       const answersContext = questions.map((q) => {
         const a = getAnswer(q.id);
         return {
           question: q.question_text,
           category: q.category,
-          selectedAnswer: a.selected_option_label || `Score ${a.score}`,
+          internalSupportText: q.description || "",
+          selectedAnswer: a.selected_option_label || a.selected_option_labels?.join(", ") || `Score ${a.score}`,
           score: a.score,
           maxScore: q.max_score,
           notes: a.notes || "",
@@ -351,34 +342,33 @@ export default function RiskAssessmentProcess() {
       const rawSummaryPrompt = settings?.ai_prompt_template ||
         "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.";
       
-      // Strip hardcoded language lines from global prompt for summary too
       const summaryLangPattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
       const cleanedSummaryPrompt = rawSummaryPrompt
         .split("\n")
         .filter((line) => !summaryLangPattern.test(line))
         .join("\n");
 
-      const promptTemplate =
+      const prompt =
         `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
         `You MUST write your ENTIRE response in ${summaryLang}. Every single word must be in ${summaryLang}.\n\n` +
         `${cleanedSummaryPrompt}\n\n` +
-        "## Internal Risk Assessment Scores\n{{scored_answers}}\n\n" +
-        "## Overall Result\nTotal Score: {{total_score}} / {{max_score}} ({{percentage}}%)\nRisk Level: {{risk_level}}\n\n" +
-        "{{case_risk_section}}" +
-        `Provide a clear summary of the risk factors, highlighting the most significant findings and recommendations.`;
-
-      const caseRiskSection = caseRiskData
-        ? `## Case Risk Assessment Data (from MEO)\n${JSON.stringify(caseRiskData, null, 2)}\n\n`
-        : "";
-
-      const prompt = promptTemplate
-        .replace("{{scored_answers}}", JSON.stringify(answersContext, null, 2))
-        .replace("{{total_score}}", ts.toFixed(1))
-        .replace("{{max_score}}", mp.toFixed(1))
-        .replace("{{percentage}}", pct.toFixed(0))
-        .replace("{{risk_level}}", getRiskLevel(pct))
-        .replace("{{case_risk_section}}", caseRiskSection)
-        .replace("{{risk_text}}", caseRiskData ? JSON.stringify(caseRiskData, null, 2) : "No case risk data available");
+        `## Risk Assessment Data\n\n` +
+        `### Overall Result\n` +
+        `Total Score: ${ts.toFixed(1)} / ${mp.toFixed(1)} (${pct.toFixed(0)}%)\n` +
+        `Risk Level: ${getRiskLevel(pct)}\n\n` +
+        `### Question-by-Question Breakdown\n` +
+        answersContext.map((a, i) =>
+          `**${i + 1}. ${a.question}** (Category: ${a.category})\n` +
+          `- Selected answer: ${a.selectedAnswer}\n` +
+          `- Score: ${a.score} / ${a.maxScore}\n` +
+          (a.notes ? `- AI analysis / notes:\n${a.notes}\n` : "") +
+          (a.internalSupportText ? `- Background context: ${a.internalSupportText}\n` : "")
+        ).join("\n") +
+        `\n\nBased on ALL the above data, provide a clear, structured summary covering:\n` +
+        `1. Overall risk assessment conclusion\n` +
+        `2. Key risk factors identified\n` +
+        `3. Areas of concern or gaps\n` +
+        `4. Recommended actions\n`;
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -637,7 +627,7 @@ export default function RiskAssessmentProcess() {
                 </Button>
               </div>
               <CardDescription>
-                Uses your scored answers combined with the case risk assessment data from MEO.
+                Generates a comprehensive summary based on all your scored answers, selected options, and AI-generated notes.
               </CardDescription>
             </CardHeader>
             <CardContent>
