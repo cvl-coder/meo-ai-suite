@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
@@ -152,7 +153,16 @@ export default function ChatPlayground() {
                 </div>
                 <div className="space-y-2">
                   <Label>Model</Label>
-                  <Input value={customModel} onChange={(e) => setCustomModel(e.target.value)} placeholder="e.g. llama3.1:latest" />
+                  <Select value={customModel} onValueChange={setCustomModel}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="llama3.1:latest">llama3.1:latest</SelectItem>
+                      <SelectItem value="mistral-nemo:latest">mistral-nemo:latest</SelectItem>
+                      <SelectItem value="gemma2:9b">gemma2:9b</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>System Prompt</Label>
