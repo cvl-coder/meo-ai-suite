@@ -627,7 +627,7 @@ export default function RiskAssessmentProcess() {
                 </Button>
               </div>
               <CardDescription>
-                Uses your scored answers combined with the case risk assessment data from MEO.
+                Generates a comprehensive summary based on all your scored answers, selected options, and AI-generated notes.
               </CardDescription>
             </CardHeader>
             <CardContent>
