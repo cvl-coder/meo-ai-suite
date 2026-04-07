@@ -616,18 +616,22 @@ Notes: [existing notes]`}
               <div>
                 <Label className="text-sm font-semibold">Include Context from Other Questions</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  When generating AI notes for this question, include answers and notes from the selected questions as additional context.
+                  When generating AI notes for this question, include answers and notes from the selected earlier questions as additional context.
                 </p>
               </div>
-              {questions.filter((q) => q.id !== editingQuestion?.id && q.enabled).length === 0 ? (
-                <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                  No other enabled questions available.
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border p-3">
-                  {questions
-                    .filter((q) => q.id !== editingQuestion?.id && q.enabled)
-                    .map((q) => (
+              {(() => {
+                const currentSortOrder = editingQuestion ? editingQuestion.sort_order : formData.sort_order;
+                const earlierQuestions = questions.filter((q) => q.id !== editingQuestion?.id && q.enabled && q.sort_order < currentSortOrder);
+                if (earlierQuestions.length === 0) {
+                  return (
+                    <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                      No earlier questions available. Only questions that come before this one in sort order can be selected.
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border p-3">
+                    {earlierQuestions.map((q) => (
                       <label key={q.id} className="flex items-start gap-3 cursor-pointer">
                         <Checkbox
                           checked={formData.context_question_ids.includes(q.id)}
@@ -646,8 +650,9 @@ Notes: [existing notes]`}
                         </div>
                       </label>
                     ))}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
           <DialogFooter>
