@@ -1,0 +1,1 @@
+ALTER TABLE risk_assessment_questions ADD COLUMN context_question_ids jsonb NOT NULL DEFAULT '[]'::jsonb;

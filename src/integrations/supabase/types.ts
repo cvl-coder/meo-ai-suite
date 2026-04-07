@@ -252,6 +252,7 @@ export type Database = {
         Row: {
           ai_prompt_template: string
           category: string
+          context_question_ids: Json
           created_at: string
           description: string | null
           enabled: boolean
@@ -266,6 +267,7 @@ export type Database = {
         Insert: {
           ai_prompt_template?: string
           category?: string
+          context_question_ids?: Json
           created_at?: string
           description?: string | null
           enabled?: boolean
@@ -280,6 +282,7 @@ export type Database = {
         Update: {
           ai_prompt_template?: string
           category?: string
+          context_question_ids?: Json
           created_at?: string
           description?: string | null
           enabled?: boolean
