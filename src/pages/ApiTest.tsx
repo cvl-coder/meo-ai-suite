@@ -144,6 +144,7 @@ export default function ApiTest() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const caseData = data?.data || data;
+      setResult(caseData);
       const individuals = Array.isArray(caseData?.individuals) ? caseData.individuals : [];
       const companies = Array.isArray(caseData?.affiliatedCompanies) ? caseData.affiliatedCompanies : [];
       const allEntities = [...individuals, ...companies];
