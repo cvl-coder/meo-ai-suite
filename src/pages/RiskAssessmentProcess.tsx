@@ -30,6 +30,7 @@ type Question = {
   sort_order: number;
   ai_prompt_template: string;
   question_type: string;
+  context_question_ids: string[];
 };
 
 type Answer = {
@@ -230,12 +231,33 @@ export default function RiskAssessmentProcess() {
         ? `\n\n**IMPORTANT — You MUST follow these additional instructions:**\n${question.ai_prompt_template.trim()}\n`
         : ``;
 
+      // Build context from referenced questions
+      const contextIds: string[] = Array.isArray(question.context_question_ids) ? question.context_question_ids : [];
+      let contextBlock = "";
+      if (contextIds.length > 0) {
+        const contextParts = contextIds
+          .map((cid) => {
+            const cq = questions.find((q) => q.id === cid);
+            if (!cq) return null;
+            const ca = getAnswer(cid);
+            const caLabel = ca.selected_option_label || ca.selected_option_labels?.join(", ") || `Score ${ca.score}`;
+            let part = `Context from: ${cq.question_text}\nAnswer: ${caLabel}\nScore: ${ca.score} / ${cq.max_score}`;
+            if (ca.notes) part += `\nAI Note: ${ca.notes}`;
+            return part;
+          })
+          .filter(Boolean);
+        if (contextParts.length > 0) {
+          contextBlock = `\n\n--- Context from related questions ---\n${contextParts.join("\n\n")}\n--- End of context ---\n`;
+        }
+      }
+
       const defaultUserPrompt =
         `Write a concise risk analysis note for this question:\n\n` +
         `Question: {{question}}\n` +
         (questionDescription ? `Background: {{description}}\n` : ``) +
         `Selected Answer: {{selected_answer}}\nCurrent Score: {{score}} / {{max_score}}\n` +
         questionSpecificInstructions +
+        contextBlock +
         `\nProvide only your professional risk analysis.`;
 
       let userPrompt = defaultUserPrompt

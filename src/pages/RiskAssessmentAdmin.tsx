@@ -33,6 +33,7 @@ type Question = {
   enabled: boolean;
   ai_prompt_template: string;
   question_type: string;
+  context_question_ids: string[];
 };
 
 type SettingsData = {
@@ -71,6 +72,7 @@ export default function RiskAssessmentAdmin() {
     enabled: true,
     ai_prompt_template: "",
     question_type: "single_select",
+    context_question_ids: [] as string[],
   });
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
   const [savingQuestion, setSavingQuestion] = useState(false);
@@ -119,14 +121,14 @@ export default function RiskAssessmentAdmin() {
 
   const openAddDialog = () => {
     setEditingQuestion(null);
-    setFormData({ category: "", question_text: "", description: "", max_score: 5, sort_order: questions.length, enabled: true, ai_prompt_template: "", question_type: "single_select" });
+    setFormData({ category: "", question_text: "", description: "", max_score: 5, sort_order: questions.length, enabled: true, ai_prompt_template: "", question_type: "single_select", context_question_ids: [] });
     setAnswerOptions([]);
     setShowAddDialog(true);
   };
 
   const openEditDialog = async (q: Question) => {
     setEditingQuestion(q);
-    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "", question_type: q.question_type || "single_select" });
+    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "", question_type: q.question_type || "single_select", context_question_ids: Array.isArray(q.context_question_ids) ? q.context_question_ids : [] });
     
     // Load existing answer options
     const { data } = await supabase
@@ -607,6 +609,45 @@ Notes: [existing notes]`}
               <p className="text-xs text-muted-foreground">
                 Optional. Appended to the global system prompt as additional instructions specific to this question.
               </p>
+            </div>
+
+            {/* Context from other questions */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-semibold">Include Context from Other Questions</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  When generating AI notes for this question, include answers and notes from the selected questions as additional context.
+                </p>
+              </div>
+              {questions.filter((q) => q.id !== editingQuestion?.id && q.enabled).length === 0 ? (
+                <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  No other enabled questions available.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border p-3">
+                  {questions
+                    .filter((q) => q.id !== editingQuestion?.id && q.enabled)
+                    .map((q) => (
+                      <label key={q.id} className="flex items-start gap-3 cursor-pointer">
+                        <Checkbox
+                          checked={formData.context_question_ids.includes(q.id)}
+                          onCheckedChange={(checked) => {
+                            setFormData((p) => ({
+                              ...p,
+                              context_question_ids: checked
+                                ? [...p.context_question_ids, q.id]
+                                : p.context_question_ids.filter((id) => id !== q.id),
+                            }));
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm">{q.question_text}</span>
+                          <Badge variant="outline" className="ml-2 text-xs">{q.category || "General"}</Badge>
+                        </div>
+                      </label>
+                    ))}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
