@@ -56,6 +56,7 @@ export default function RiskAssessmentQuestionEdit() {
     ai_prompt_template: "",
     question_type: "single_select",
     context_question_ids: [] as string[],
+    score_aggregation: "none" as "none" | "sum" | "average" | "max",
   });
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
 
