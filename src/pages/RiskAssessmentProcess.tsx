@@ -245,6 +245,7 @@ export default function RiskAssessmentProcess() {
             const ca = getAnswer(cid);
             const caLabel = ca.selected_option_label || ca.selected_option_labels?.join(", ") || `Score ${ca.score}`;
             let part = `Context from: ${cq.question_text}\nAnswer: ${caLabel}\nScore: ${ca.score} / ${cq.max_score}`;
+            if (ca.followup_text) part += `\nFollow-up details: ${ca.followup_text}`;
             if (ca.notes) part += `\nAI Note: ${ca.notes}`;
             return part;
           })
