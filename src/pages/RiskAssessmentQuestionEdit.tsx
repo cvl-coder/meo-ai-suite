@@ -165,7 +165,7 @@ export default function RiskAssessmentQuestionEdit() {
 
     if (qId) {
       await supabase.from("risk_assessment_answer_options").delete().eq("question_id", qId);
-      if (answerOptions.length > 0) {
+      if (!isSummary && answerOptions.length > 0) {
         const rows = answerOptions.map((o, i) => ({
           question_id: qId!,
           label: o.label,
