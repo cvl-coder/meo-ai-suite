@@ -20,6 +20,8 @@ type AnswerOption = {
   label: string;
   score: number;
   sort_order: number;
+  requires_followup?: boolean;
+  followup_label?: string;
 };
 
 type Question = {
@@ -96,7 +98,7 @@ export default function RiskAssessmentQuestionEdit() {
   }, [questionId, isNew]);
 
   const addAnswerOption = () => {
-    setAnswerOptions((prev) => [...prev, { label: "", score: 0, sort_order: prev.length }]);
+    setAnswerOptions((prev) => [...prev, { label: "", score: 0, sort_order: prev.length, requires_followup: false, followup_label: "" }]);
   };
   const updateAnswerOption = (index: number, updates: Partial<AnswerOption>) => {
     setAnswerOptions((prev) => prev.map((o, i) => (i === index ? { ...o, ...updates } : o)));
@@ -154,6 +156,8 @@ export default function RiskAssessmentQuestionEdit() {
           label: o.label,
           score: o.score,
           sort_order: i,
+          requires_followup: !!o.requires_followup,
+          followup_label: o.followup_label || "",
         }));
         await supabase.from("risk_assessment_answer_options").insert(rows);
       }
@@ -277,27 +281,48 @@ export default function RiskAssessmentQuestionEdit() {
                 ) : (
                   <div className="space-y-2">
                     {answerOptions.map((opt, i) => (
-                      <div key={i} className="flex items-center gap-2 rounded-md border p-2">
-                        <span className="text-xs text-muted-foreground w-5 text-center">{i + 1}</span>
-                        <Input
-                          className="flex-1"
-                          placeholder="Answer label (e.g. 'Low risk - no PEP exposure')"
-                          value={opt.label}
-                          onChange={(e) => updateAnswerOption(i, { label: e.target.value })}
-                        />
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Label className="text-xs text-muted-foreground">Score:</Label>
+                      <div key={i} className="rounded-md border p-2 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-5 text-center">{i + 1}</span>
                           <Input
-                            type="number"
-                            className="w-20"
-                            value={opt.score}
-                            onChange={(e) => updateAnswerOption(i, { score: Number(e.target.value) })}
-                            min={0}
+                            className="flex-1"
+                            placeholder="Answer label (e.g. 'Low risk - no PEP exposure')"
+                            value={opt.label}
+                            onChange={(e) => updateAnswerOption(i, { label: e.target.value })}
                           />
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Label className="text-xs text-muted-foreground">Score:</Label>
+                            <Input
+                              type="number"
+                              className="w-20"
+                              value={opt.score}
+                              onChange={(e) => updateAnswerOption(i, { score: Number(e.target.value) })}
+                              min={0}
+                            />
+                          </div>
+                          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeAnswerOption(i)}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeAnswerOption(i)}>
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-start gap-2 pl-7">
+                          <label className="flex items-center gap-2 cursor-pointer shrink-0 pt-2">
+                            <Checkbox
+                              checked={!!opt.requires_followup}
+                              onCheckedChange={(checked) =>
+                                updateAnswerOption(i, { requires_followup: !!checked })
+                              }
+                            />
+                            <span className="text-xs text-muted-foreground">Requires follow-up text</span>
+                          </label>
+                          {opt.requires_followup && (
+                            <Input
+                              className="flex-1"
+                              placeholder="Follow-up prompt (e.g. 'Please describe...')"
+                              value={opt.followup_label || ""}
+                              onChange={(e) => updateAnswerOption(i, { followup_label: e.target.value })}
+                            />
+                          )}
+                        </div>
                       </div>
                     ))}
                     <p className="text-xs text-muted-foreground">
