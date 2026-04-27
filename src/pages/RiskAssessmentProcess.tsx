@@ -939,31 +939,11 @@ export default function RiskAssessmentProcess() {
                               )}
                             </div>
 
-                            <div className="rounded-md border bg-background p-3 space-y-1.5">
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                Will summarise {sources.length} question{sources.length === 1 ? "" : "s"}
+                            {sources.length === 0 && !hasGenerated && (
+                              <p className="text-xs text-muted-foreground italic">
+                                No source questions configured. Edit this question in the admin to choose what to summarise.
                               </p>
-                              {sources.length === 0 ? (
-                                <p className="text-xs text-muted-foreground italic">
-                                  No source questions configured. Edit this question in the admin to choose what to summarise.
-                                </p>
-                              ) : (
-                                <ul className="space-y-1">
-                                  {sources.map((s, i) => {
-                                    const sNum = questions.findIndex((qq) => qq.id === s.q.id) + 1;
-                                    const lbl = s.a.selected_option_label || s.a.selected_option_labels?.join(", ") || "(no answer yet)";
-                                    return (
-                                      <li key={s.q.id} className="text-xs flex gap-2">
-                                        <span className="text-muted-foreground shrink-0">{i + 1}.</span>
-                                        <span className="text-muted-foreground shrink-0">#{sNum}</span>
-                                        <span className="truncate flex-1">{s.q.question_text}</span>
-                                        <span className="shrink-0 font-medium">→ {lbl}</span>
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              )}
-                            </div>
+                            )}
 
                             {hasGenerated && (
                               <div className="rounded-md border bg-background p-3 prose prose-sm max-w-none text-foreground">
