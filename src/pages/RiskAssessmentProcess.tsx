@@ -19,6 +19,8 @@ type AnswerOption = {
   label: string;
   score: number;
   sort_order: number;
+  requires_followup?: boolean;
+  followup_label?: string;
 };
 
 type Question = {
@@ -37,6 +39,7 @@ type Answer = {
   question_id: string;
   score: number;
   notes: string;
+  followup_text?: string;
   selected_option_label?: string;
   selected_option_labels?: string[];
 };
@@ -97,7 +100,7 @@ export default function RiskAssessmentProcess() {
         }
         const answerMap: Record<string, Answer> = {};
         ((answersRes.data as any[]) || []).forEach((a) => {
-          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "" };
+          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "", followup_text: a.followup_text || "" };
         });
         
         // Reconstruct selected options from score + options
@@ -137,7 +140,7 @@ export default function RiskAssessmentProcess() {
   }, [sessionId]);
 
   const getAnswer = (questionId: string): Answer => {
-    return answers[questionId] || { question_id: questionId, score: 0, notes: "", selected_option_label: undefined };
+    return answers[questionId] || { question_id: questionId, score: 0, notes: "", followup_text: "", selected_option_label: undefined };
   };
 
   const updateAnswer = (questionId: string, updates: Partial<Answer>) => {
