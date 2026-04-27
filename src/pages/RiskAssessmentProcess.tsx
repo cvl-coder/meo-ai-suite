@@ -634,12 +634,15 @@ export default function RiskAssessmentProcess() {
               <CardTitle className="text-base">Score Breakdown</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {questions.map((q) => {
+              {questions.map((q, qIdx) => {
                 const a = getAnswer(q.id);
                 return (
                   <div key={q.id} className="flex items-center justify-between rounded-md border p-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{q.question_text}</p>
+                      <p className="text-sm font-medium truncate">
+                        <span className="text-muted-foreground mr-2">#{qIdx + 1}</span>
+                        {q.question_text}
+                      </p>
                       {a.selected_option_label && (
                         <p className="text-xs text-muted-foreground mt-0.5">Answer: {a.selected_option_label}</p>
                       )}
