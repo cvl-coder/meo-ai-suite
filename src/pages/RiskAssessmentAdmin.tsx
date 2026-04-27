@@ -13,7 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Plus, Loader2, GripVertical, Pencil, Trash2, Save, X, Eye, AlertTriangle } from "lucide-react";
+import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Save, X, Eye, AlertTriangle } from "lucide-react";
 
 type AnswerOption = {
   id?: string;
