@@ -104,41 +104,8 @@ export default function RiskAssessmentAdmin() {
     }
   };
 
-  const openAddDialog = () => {
-    setEditingQuestion(null);
-    setFormData({ category: "", question_text: "", description: "", max_score: 5, sort_order: questions.length, enabled: true, ai_prompt_template: "", question_type: "single_select", context_question_ids: [] });
-    setAnswerOptions([]);
-    setShowAddDialog(true);
-  };
 
-  const openEditDialog = async (q: Question) => {
-    setEditingQuestion(q);
-    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "", question_type: q.question_type || "single_select", context_question_ids: Array.isArray(q.context_question_ids) ? q.context_question_ids : [] });
-    
-    // Load existing answer options
-    const { data } = await supabase
-      .from("risk_assessment_answer_options")
-      .select("*")
-      .eq("question_id", q.id)
-      .order("sort_order");
-    setAnswerOptions((data as any[]) || []);
-    setShowAddDialog(true);
-  };
 
-  const addAnswerOption = () => {
-    setAnswerOptions((prev) => [
-      ...prev,
-      { label: "", score: 0, sort_order: prev.length },
-    ]);
-  };
-
-  const updateAnswerOption = (index: number, updates: Partial<AnswerOption>) => {
-    setAnswerOptions((prev) => prev.map((o, i) => (i === index ? { ...o, ...updates } : o)));
-  };
-
-  const removeAnswerOption = (index: number) => {
-    setAnswerOptions((prev) => prev.filter((_, i) => i !== index));
-  };
 
   const moveQuestion = async (index: number, direction: "up" | "down") => {
     const neighborIndex = direction === "up" ? index - 1 : index + 1;
@@ -162,63 +129,8 @@ export default function RiskAssessmentAdmin() {
     }
   };
 
-  const saveQuestion = async () => {
-    if (!formData.question_text.trim()) {
-      toast({ title: "Question text required", variant: "destructive" });
-      return;
-    }
-    setSavingQuestion(true);
 
-    // Derive max_score: for multi_select sum all scores, for single_select take highest
-    const derivedMaxScore = answerOptions.length > 0
-      ? (formData.question_type === "multi_select"
-        ? answerOptions.reduce((sum, o) => sum + o.score, 0)
-        : Math.max(...answerOptions.map((o) => o.score), 0))
-      : formData.max_score;
 
-    const questionPayload = { ...formData, max_score: derivedMaxScore };
-
-    let questionId = editingQuestion?.id;
-
-    if (editingQuestion) {
-      const { error } = await supabase
-        .from("risk_assessment_questions")
-        .update({ ...questionPayload, updated_at: new Date().toISOString() })
-        .eq("id", editingQuestion.id);
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        setSavingQuestion(false);
-        return;
-      }
-    } else {
-      const { data, error } = await supabase.from("risk_assessment_questions").insert(questionPayload).select().single();
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        setSavingQuestion(false);
-        return;
-      }
-      questionId = (data as any).id;
-    }
-
-    // Save answer options: delete existing, then insert new
-    if (questionId) {
-      await supabase.from("risk_assessment_answer_options").delete().eq("question_id", questionId);
-      if (answerOptions.length > 0) {
-        const rows = answerOptions.map((o, i) => ({
-          question_id: questionId!,
-          label: o.label,
-          score: o.score,
-          sort_order: i,
-        }));
-        await supabase.from("risk_assessment_answer_options").insert(rows);
-      }
-    }
-
-    toast({ title: editingQuestion ? "Question updated" : "Question added" });
-    setSavingQuestion(false);
-    setShowAddDialog(false);
-    loadData();
-  };
 
   const deleteQuestion = async (id: string) => {
     const { error } = await supabase.from("risk_assessment_questions").delete().eq("id", id);
