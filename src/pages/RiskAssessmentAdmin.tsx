@@ -300,10 +300,31 @@ export default function RiskAssessmentAdmin() {
               </Card>
             ) : (
               <div className="space-y-2">
-                {questions.map((q) => (
+                {questions.map((q, idx) => (
                   <Card key={q.id} className={`transition-opacity ${!q.enabled ? "opacity-50" : ""}`}>
                     <CardContent className="flex items-center gap-3 py-3">
-                      <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="flex flex-col shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          disabled={idx === 0}
+                          onClick={() => moveQuestion(idx, "up")}
+                          aria-label="Move up"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          disabled={idx === questions.length - 1}
+                          onClick={() => moveQuestion(idx, "down")}
+                          aria-label="Move down"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{q.question_text}</p>
                         <div className="flex gap-2 mt-1">
