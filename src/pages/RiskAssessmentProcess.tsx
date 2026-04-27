@@ -482,6 +482,7 @@ export default function RiskAssessmentProcess() {
     setGeneratingNoteFor(null);
   };
 
+  const generateAiSummary = async () => {
     if (!session?.id) return;
     const meoToken = getMeoToken();
     const customerId = session.customer_id || localStorage.getItem("selectedCustomerId") || "";
