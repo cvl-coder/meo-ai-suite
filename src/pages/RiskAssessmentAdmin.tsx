@@ -223,7 +223,10 @@ export default function RiskAssessmentAdmin() {
                         </Button>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{q.question_text}</p>
+                        <p className="text-sm font-medium truncate">
+                          <span className="text-muted-foreground mr-2">#{idx + 1}</span>
+                          {q.question_text}
+                        </p>
                         <div className="flex gap-2 mt-1">
                         <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
                           <Badge variant="secondary" className="text-xs">{q.question_type === "multi_select" ? "Multi" : "Single"}</Badge>

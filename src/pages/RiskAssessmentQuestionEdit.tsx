@@ -393,7 +393,10 @@ export default function RiskAssessmentQuestionEdit() {
                           }}
                         />
                         <div className="flex-1 min-w-0">
-                          <span className="text-sm">{q.question_text}</span>
+                          <span className="text-sm">
+                            <span className="text-muted-foreground mr-1">#{allQuestions.findIndex((aq) => aq.id === q.id) + 1}</span>
+                            {q.question_text}
+                          </span>
                           <div className="mt-1">
                             <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
                           </div>

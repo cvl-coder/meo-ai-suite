@@ -634,12 +634,15 @@ export default function RiskAssessmentProcess() {
               <CardTitle className="text-base">Score Breakdown</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {questions.map((q) => {
+              {questions.map((q, qIdx) => {
                 const a = getAnswer(q.id);
                 return (
                   <div key={q.id} className="flex items-center justify-between rounded-md border p-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{q.question_text}</p>
+                      <p className="text-sm font-medium truncate">
+                        <span className="text-muted-foreground mr-2">#{qIdx + 1}</span>
+                        {q.question_text}
+                      </p>
                       {a.selected_option_label && (
                         <p className="text-xs text-muted-foreground mt-0.5">Answer: {a.selected_option_label}</p>
                       )}
@@ -738,12 +741,16 @@ export default function RiskAssessmentProcess() {
                     const answer = getAnswer(q.id);
                     const options = answerOptionsByQuestion[q.id] || [];
                     const hasOptions = options.length > 0;
+                    const globalIdx = questions.findIndex((qq) => qq.id === q.id);
 
                     return (
                       <Card key={q.id}>
                         <CardContent className="pt-6 space-y-4">
                           <div className="space-y-1">
-                            <Label className="text-sm font-medium">{q.question_text}</Label>
+                            <Label className="text-sm font-medium">
+                              <span className="text-muted-foreground mr-2">#{globalIdx + 1}</span>
+                              {q.question_text}
+                            </Label>
                           </div>
 
                           {hasOptions ? (
