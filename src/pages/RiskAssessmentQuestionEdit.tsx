@@ -178,9 +178,8 @@ export default function RiskAssessmentQuestionEdit() {
     );
   }
 
-  const currentSortOrder = editingQuestion ? editingQuestion.sort_order : formData.sort_order;
-  const earlierQuestions = allQuestions.filter(
-    (q) => q.id !== editingQuestion?.id && q.enabled && q.sort_order < currentSortOrder
+  const otherQuestions = allQuestions.filter(
+    (q) => q.id !== editingQuestion?.id && q.enabled
   );
 
   return (
