@@ -362,16 +362,22 @@ export default function RiskAssessmentQuestionEdit() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Question-Specific AI Instructions</CardTitle>
+                <CardTitle className="text-base">
+                  {formData.question_type === "summary" ? "Summary Instructions" : "Question-Specific AI Instructions"}
+                </CardTitle>
                 <CardDescription>
-                  Optional. Appended to the global system prompt as additional instructions specific to this question.
+                  {formData.question_type === "summary"
+                    ? "Tell the AI how to summarise the selected questions (tone, length, what to highlight). Example: \"Give a 3-sentence client-risk overview highlighting the highest-risk factors.\""
+                    : "Optional. Appended to the global system prompt as additional instructions specific to this question."}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Textarea
                   value={formData.ai_prompt_template}
                   onChange={(e) => setFormData((p) => ({ ...p, ai_prompt_template: e.target.value }))}
-                  placeholder="e.g. Pay special attention to indirect PEP connections. Consider both domestic and foreign exposure..."
+                  placeholder={formData.question_type === "summary"
+                    ? "e.g. Provide a concise client-risk overview in 3 sentences. Highlight any high-scoring answers and explain their combined impact."
+                    : "e.g. Pay special attention to indirect PEP connections. Consider both domestic and foreign exposure..."}
                   className="h-32 font-mono text-xs"
                 />
               </CardContent>
