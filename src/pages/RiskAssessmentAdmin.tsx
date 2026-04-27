@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Save, X, Eye, AlertTriangle } from "lucide-react";
+import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Save, Eye, AlertTriangle } from "lucide-react";
 
 type AnswerOption = {
   id?: string;
@@ -56,26 +56,11 @@ const DATA_SOURCE_OPTIONS = [
 ];
 
 export default function RiskAssessmentAdmin() {
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
-
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
-  const [formData, setFormData] = useState({
-    category: "",
-    question_text: "",
-    description: "",
-    max_score: 5,
-    sort_order: 0,
-    enabled: true,
-    ai_prompt_template: "",
-    question_type: "single_select",
-    context_question_ids: [] as string[],
-  });
-  const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
-  const [savingQuestion, setSavingQuestion] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -119,41 +104,8 @@ export default function RiskAssessmentAdmin() {
     }
   };
 
-  const openAddDialog = () => {
-    setEditingQuestion(null);
-    setFormData({ category: "", question_text: "", description: "", max_score: 5, sort_order: questions.length, enabled: true, ai_prompt_template: "", question_type: "single_select", context_question_ids: [] });
-    setAnswerOptions([]);
-    setShowAddDialog(true);
-  };
 
-  const openEditDialog = async (q: Question) => {
-    setEditingQuestion(q);
-    setFormData({ category: q.category, question_text: q.question_text, description: q.description, max_score: q.max_score, sort_order: q.sort_order, enabled: q.enabled, ai_prompt_template: q.ai_prompt_template || "", question_type: q.question_type || "single_select", context_question_ids: Array.isArray(q.context_question_ids) ? q.context_question_ids : [] });
-    
-    // Load existing answer options
-    const { data } = await supabase
-      .from("risk_assessment_answer_options")
-      .select("*")
-      .eq("question_id", q.id)
-      .order("sort_order");
-    setAnswerOptions((data as any[]) || []);
-    setShowAddDialog(true);
-  };
 
-  const addAnswerOption = () => {
-    setAnswerOptions((prev) => [
-      ...prev,
-      { label: "", score: 0, sort_order: prev.length },
-    ]);
-  };
-
-  const updateAnswerOption = (index: number, updates: Partial<AnswerOption>) => {
-    setAnswerOptions((prev) => prev.map((o, i) => (i === index ? { ...o, ...updates } : o)));
-  };
-
-  const removeAnswerOption = (index: number) => {
-    setAnswerOptions((prev) => prev.filter((_, i) => i !== index));
-  };
 
   const moveQuestion = async (index: number, direction: "up" | "down") => {
     const neighborIndex = direction === "up" ? index - 1 : index + 1;
@@ -177,63 +129,8 @@ export default function RiskAssessmentAdmin() {
     }
   };
 
-  const saveQuestion = async () => {
-    if (!formData.question_text.trim()) {
-      toast({ title: "Question text required", variant: "destructive" });
-      return;
-    }
-    setSavingQuestion(true);
 
-    // Derive max_score: for multi_select sum all scores, for single_select take highest
-    const derivedMaxScore = answerOptions.length > 0
-      ? (formData.question_type === "multi_select"
-        ? answerOptions.reduce((sum, o) => sum + o.score, 0)
-        : Math.max(...answerOptions.map((o) => o.score), 0))
-      : formData.max_score;
 
-    const questionPayload = { ...formData, max_score: derivedMaxScore };
-
-    let questionId = editingQuestion?.id;
-
-    if (editingQuestion) {
-      const { error } = await supabase
-        .from("risk_assessment_questions")
-        .update({ ...questionPayload, updated_at: new Date().toISOString() })
-        .eq("id", editingQuestion.id);
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        setSavingQuestion(false);
-        return;
-      }
-    } else {
-      const { data, error } = await supabase.from("risk_assessment_questions").insert(questionPayload).select().single();
-      if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-        setSavingQuestion(false);
-        return;
-      }
-      questionId = (data as any).id;
-    }
-
-    // Save answer options: delete existing, then insert new
-    if (questionId) {
-      await supabase.from("risk_assessment_answer_options").delete().eq("question_id", questionId);
-      if (answerOptions.length > 0) {
-        const rows = answerOptions.map((o, i) => ({
-          question_id: questionId!,
-          label: o.label,
-          score: o.score,
-          sort_order: i,
-        }));
-        await supabase.from("risk_assessment_answer_options").insert(rows);
-      }
-    }
-
-    toast({ title: editingQuestion ? "Question updated" : "Question added" });
-    setSavingQuestion(false);
-    setShowAddDialog(false);
-    loadData();
-  };
 
   const deleteQuestion = async (id: string) => {
     const { error } = await supabase.from("risk_assessment_questions").delete().eq("id", id);
@@ -287,7 +184,7 @@ export default function RiskAssessmentAdmin() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Assessment Questions</h2>
-              <Button onClick={openAddDialog} size="sm" className="gap-2">
+              <Button onClick={() => navigate("/risk-assessment/admin/questions/new")} size="sm" className="gap-2">
                 <Plus className="h-4 w-4" /> Add Question
               </Button>
             </div>
@@ -334,7 +231,7 @@ export default function RiskAssessmentAdmin() {
                         </div>
                       </div>
                       <Switch checked={q.enabled} onCheckedChange={(v) => toggleQuestion(q.id, v)} />
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(q)}>
+                      <Button variant="ghost" size="icon" onClick={() => navigate(`/risk-assessment/admin/questions/${q.id}`)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteQuestion(q.id)}>
@@ -546,167 +443,6 @@ Notes: [existing notes]`}
         </div>
       </div>
 
-      {/* Add/Edit Question Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingQuestion ? "Edit Question" : "Add Question"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Input value={formData.category} onChange={(e) => setFormData((p) => ({ ...p, category: e.target.value }))} placeholder="e.g. KYC, PEP, Sanctions" />
-            </div>
-            <div className="space-y-2">
-              <Label>Question Text</Label>
-              <Input value={formData.question_text} onChange={(e) => setFormData((p) => ({ ...p, question_text: e.target.value }))} placeholder="e.g. What is the PEP exposure level?" />
-            </div>
-            <div className="space-y-2">
-              <Label>Internal Support Text</Label>
-              <Textarea value={formData.description} onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))} placeholder="Help text for the assessor..." className="h-16" />
-            </div>
-            <div className="space-y-2">
-              <Label>Answer Type</Label>
-              <Select value={formData.question_type} onValueChange={(v) => setFormData((p) => ({ ...p, question_type: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single_select">Single Select</SelectItem>
-                  <SelectItem value="multi_select">Multi Select</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {answerOptions.length === 0 && (
-              <div className="space-y-2">
-                <Label>Max Score (manual)</Label>
-                <Input type="number" value={formData.max_score} onChange={(e) => setFormData((p) => ({ ...p, max_score: Number(e.target.value) }))} min={1} max={100} />
-                <p className="text-xs text-muted-foreground">Used as fallback slider if no answer options are defined.</p>
-              </div>
-            )}
-
-            {/* Answer Options */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-semibold">Answer Options</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Define selectable answers. Each has a label (shown to user) and a hidden risk score.
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" onClick={addAnswerOption} className="gap-1">
-                  <Plus className="h-3.5 w-3.5" /> Add Option
-                </Button>
-              </div>
-
-              {answerOptions.length === 0 ? (
-                <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                  No answer options defined. Users will see a slider (0 to max score) instead.
-                  {formData.question_type === "multi_select" && (
-                    <p className="mt-1 text-xs font-medium text-primary">Multi-select: the score will be the sum of all selected options.</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {answerOptions.map((opt, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-md border p-2">
-                      <span className="text-xs text-muted-foreground w-5 text-center">{i + 1}</span>
-                      <Input
-                        className="flex-1"
-                        placeholder="Answer label (e.g. 'Low risk - no PEP exposure')"
-                        value={opt.label}
-                        onChange={(e) => updateAnswerOption(i, { label: e.target.value })}
-                      />
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Label className="text-xs text-muted-foreground">Score:</Label>
-                        <Input
-                          type="number"
-                          className="w-20"
-                          value={opt.score}
-                          onChange={(e) => updateAnswerOption(i, { score: Number(e.target.value) })}
-                          min={0}
-                        />
-                      </div>
-                      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeAnswerOption(i)}>
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground">
-                    {formData.question_type === "multi_select"
-                      ? `Max score (sum of all options): ${answerOptions.reduce((s, o) => s + o.score, 0)}`
-                      : `Max score (highest option): ${Math.max(...answerOptions.map(o => o.score), 0)}`}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Question-Specific AI Instructions</Label>
-              <Textarea
-                value={formData.ai_prompt_template}
-                onChange={(e) => setFormData((p) => ({ ...p, ai_prompt_template: e.target.value }))}
-                placeholder="e.g. Pay special attention to indirect PEP connections. Consider both domestic and foreign exposure..."
-                className="h-24 font-mono text-xs"
-              />
-              <p className="text-xs text-muted-foreground">
-                Optional. Appended to the global system prompt as additional instructions specific to this question.
-              </p>
-            </div>
-
-            {/* Context from other questions */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-sm font-semibold">Include Context from Other Questions</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  When generating AI notes for this question, include answers and notes from the selected earlier questions as additional context.
-                </p>
-              </div>
-              {(() => {
-                const currentSortOrder = editingQuestion ? editingQuestion.sort_order : formData.sort_order;
-                const earlierQuestions = questions.filter((q) => q.id !== editingQuestion?.id && q.enabled && q.sort_order < currentSortOrder);
-                if (earlierQuestions.length === 0) {
-                  return (
-                    <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                      No earlier questions available. Only questions that come before this one in sort order can be selected.
-                    </div>
-                  );
-                }
-                return (
-                  <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border p-3">
-                    {earlierQuestions.map((q) => (
-                      <label key={q.id} className="flex items-start gap-3 cursor-pointer">
-                        <Checkbox
-                          checked={formData.context_question_ids.includes(q.id)}
-                          onCheckedChange={(checked) => {
-                            setFormData((p) => ({
-                              ...p,
-                              context_question_ids: checked
-                                ? [...p.context_question_ids, q.id]
-                                : p.context_question_ids.filter((id) => id !== q.id),
-                            }));
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm">{q.question_text}</span>
-                          <Badge variant="outline" className="ml-2 text-xs">{q.category || "General"}</Badge>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-            <Button onClick={saveQuestion} disabled={savingQuestion}>
-              {savingQuestion && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {editingQuestion ? "Save Changes" : "Add Question"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AppLayout>
   );
 }
