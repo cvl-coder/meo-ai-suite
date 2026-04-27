@@ -229,7 +229,9 @@ export default function RiskAssessmentAdmin() {
                         </p>
                         <div className="flex gap-2 mt-1">
                         <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
-                          <Badge variant="secondary" className="text-xs">{q.question_type === "multi_select" ? "Multi" : "Single"}</Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {q.question_type === "summary" ? "Summary" : q.question_type === "multi_select" ? "Multi" : "Single"}
+                          </Badge>
                           <Badge variant="secondary" className="text-xs">Max: {q.max_score}</Badge>
                         </div>
                       </div>
