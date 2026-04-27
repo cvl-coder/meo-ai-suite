@@ -369,13 +369,13 @@ export default function RiskAssessmentQuestionEdit() {
               <CardHeader>
                 <CardTitle className="text-base">Context from Other Questions</CardTitle>
                 <CardDescription>
-                  Include answers and notes from selected earlier questions when generating AI notes.
+                  Include answers and notes from any other question when generating AI notes.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {otherQuestions.length === 0 ? (
                   <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                    No earlier questions available.
+                    No other questions available.
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
