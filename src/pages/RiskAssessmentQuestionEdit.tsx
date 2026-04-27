@@ -271,105 +271,94 @@ export default function RiskAssessmentQuestionEdit() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Answer Options</CardTitle>
-                <CardDescription>
-                  Define selectable answers. Each has a label (shown to user) and a hidden risk score.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Answer Type</Label>
-                  <Select value={formData.question_type} onValueChange={(v) => setFormData((p) => ({ ...p, question_type: v }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single_select">Single Select</SelectItem>
-                      <SelectItem value="multi_select">Multi Select</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            {formData.question_type !== "summary" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Answer Options</CardTitle>
+                  <CardDescription>
+                    Define selectable answers. Each has a label (shown to user) and a hidden risk score.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {answerOptions.length === 0 && (
+                    <div className="space-y-2">
+                      <Label>Max Score (manual)</Label>
+                      <Input type="number" value={formData.max_score} onChange={(e) => setFormData((p) => ({ ...p, max_score: Number(e.target.value) }))} min={1} max={100} />
+                      <p className="text-xs text-muted-foreground">Used as fallback slider if no answer options are defined.</p>
+                    </div>
+                  )}
 
-                {answerOptions.length === 0 && (
-                  <div className="space-y-2">
-                    <Label>Max Score (manual)</Label>
-                    <Input type="number" value={formData.max_score} onChange={(e) => setFormData((p) => ({ ...p, max_score: Number(e.target.value) }))} min={1} max={100} />
-                    <p className="text-xs text-muted-foreground">Used as fallback slider if no answer options are defined.</p>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Options</Label>
+                    <Button variant="outline" size="sm" onClick={addAnswerOption} className="gap-1">
+                      <Plus className="h-3.5 w-3.5" /> Add Option
+                    </Button>
                   </div>
-                )}
 
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold">Options</Label>
-                  <Button variant="outline" size="sm" onClick={addAnswerOption} className="gap-1">
-                    <Plus className="h-3.5 w-3.5" /> Add Option
-                  </Button>
-                </div>
-
-                {answerOptions.length === 0 ? (
-                  <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                    No answer options defined. Users will see a slider (0 to max score) instead.
-                    {formData.question_type === "multi_select" && (
-                      <p className="mt-1 text-xs font-medium text-primary">Multi-select: the score will be the sum of all selected options.</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {answerOptions.map((opt, i) => (
-                      <div key={i} className="rounded-md border p-2 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-5 text-center">{i + 1}</span>
-                          <Input
-                            className="flex-1"
-                            placeholder="Answer label (e.g. 'Low risk - no PEP exposure')"
-                            value={opt.label}
-                            onChange={(e) => updateAnswerOption(i, { label: e.target.value })}
-                          />
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <Label className="text-xs text-muted-foreground">Score:</Label>
-                            <Input
-                              type="number"
-                              className="w-20"
-                              value={opt.score}
-                              onChange={(e) => updateAnswerOption(i, { score: Number(e.target.value) })}
-                              min={0}
-                            />
-                          </div>
-                          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeAnswerOption(i)}>
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                        <div className="flex items-start gap-2 pl-7">
-                          <label className="flex items-center gap-2 cursor-pointer shrink-0 pt-2">
-                            <Checkbox
-                              checked={!!opt.requires_followup}
-                              onCheckedChange={(checked) =>
-                                updateAnswerOption(i, { requires_followup: !!checked })
-                              }
-                            />
-                            <span className="text-xs text-muted-foreground">Requires follow-up text</span>
-                          </label>
-                          {opt.requires_followup && (
+                  {answerOptions.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                      No answer options defined. Users will see a slider (0 to max score) instead.
+                      {formData.question_type === "multi_select" && (
+                        <p className="mt-1 text-xs font-medium text-primary">Multi-select: the score will be the sum of all selected options.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {answerOptions.map((opt, i) => (
+                        <div key={i} className="rounded-md border p-2 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-5 text-center">{i + 1}</span>
                             <Input
                               className="flex-1"
-                              placeholder="Follow-up prompt (e.g. 'Please describe...')"
-                              value={opt.followup_label || ""}
-                              onChange={(e) => updateAnswerOption(i, { followup_label: e.target.value })}
+                              placeholder="Answer label (e.g. 'Low risk - no PEP exposure')"
+                              value={opt.label}
+                              onChange={(e) => updateAnswerOption(i, { label: e.target.value })}
                             />
-                          )}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Label className="text-xs text-muted-foreground">Score:</Label>
+                              <Input
+                                type="number"
+                                className="w-20"
+                                value={opt.score}
+                                onChange={(e) => updateAnswerOption(i, { score: Number(e.target.value) })}
+                                min={0}
+                              />
+                            </div>
+                            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeAnswerOption(i)}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          <div className="flex items-start gap-2 pl-7">
+                            <label className="flex items-center gap-2 cursor-pointer shrink-0 pt-2">
+                              <Checkbox
+                                checked={!!opt.requires_followup}
+                                onCheckedChange={(checked) =>
+                                  updateAnswerOption(i, { requires_followup: !!checked })
+                                }
+                              />
+                              <span className="text-xs text-muted-foreground">Requires follow-up text</span>
+                            </label>
+                            {opt.requires_followup && (
+                              <Input
+                                className="flex-1"
+                                placeholder="Follow-up prompt (e.g. 'Please describe...')"
+                                value={opt.followup_label || ""}
+                                onChange={(e) => updateAnswerOption(i, { followup_label: e.target.value })}
+                              />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    <p className="text-xs text-muted-foreground">
-                      {formData.question_type === "multi_select"
-                        ? `Max score (sum of all options): ${answerOptions.reduce((s, o) => s + o.score, 0)}`
-                        : `Max score (highest option): ${Math.max(...answerOptions.map((o) => o.score), 0)}`}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                      <p className="text-xs text-muted-foreground">
+                        {formData.question_type === "multi_select"
+                          ? `Max score (sum of all options): ${answerOptions.reduce((s, o) => s + o.score, 0)}`
+                          : `Max score (highest option): ${Math.max(...answerOptions.map((o) => o.score), 0)}`}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>
