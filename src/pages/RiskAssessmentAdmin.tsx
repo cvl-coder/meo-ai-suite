@@ -155,6 +155,28 @@ export default function RiskAssessmentAdmin() {
     setAnswerOptions((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const moveQuestion = async (index: number, direction: "up" | "down") => {
+    const neighborIndex = direction === "up" ? index - 1 : index + 1;
+    if (neighborIndex < 0 || neighborIndex >= questions.length) return;
+    const current = questions[index];
+    const neighbor = questions[neighborIndex];
+
+    // Optimistically reorder local list
+    const reordered = [...questions];
+    reordered[index] = neighbor;
+    reordered[neighborIndex] = current;
+    setQuestions(reordered);
+
+    const [r1, r2] = await Promise.all([
+      supabase.from("risk_assessment_questions").update({ sort_order: neighbor.sort_order }).eq("id", current.id),
+      supabase.from("risk_assessment_questions").update({ sort_order: current.sort_order }).eq("id", neighbor.id),
+    ]);
+    if (r1.error || r2.error) {
+      toast({ title: "Error reordering", description: (r1.error || r2.error)?.message, variant: "destructive" });
+      loadData();
+    }
+  };
+
   const saveQuestion = async () => {
     if (!formData.question_text.trim()) {
       toast({ title: "Question text required", variant: "destructive" });
