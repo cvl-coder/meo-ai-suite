@@ -180,6 +180,28 @@ export default function RiskAssessmentProcess() {
     let totalScore = 0;
     let maxPossible = 0;
     questions.forEach((q) => {
+      if (q.question_type === "summary") {
+        if (!q.score_aggregation || q.score_aggregation === "none") return; // narrative-only, skip
+        // Compute live so totals stay correct even before "Generate" is clicked
+        const sourceIds: string[] = Array.isArray(q.context_question_ids) ? q.context_question_ids : [];
+        const sources = sourceIds
+          .map((sid) => ({ q: questions.find((qq) => qq.id === sid), a: answers[sid] }))
+          .filter((s): s is { q: Question; a: Answer } => !!s.q);
+        if (sources.length === 0) return;
+        if (q.score_aggregation === "sum") {
+          totalScore += sources.reduce((s, x) => s + (x.a?.score || 0), 0);
+          maxPossible += sources.reduce((s, x) => s + (x.q.max_score || 0), 0);
+        } else if (q.score_aggregation === "average") {
+          const t = sources.reduce((s, x) => s + (x.a?.score || 0), 0);
+          const m = sources.reduce((s, x) => s + (x.q.max_score || 0), 0);
+          totalScore += Math.round(t / sources.length);
+          maxPossible += Math.round(m / sources.length);
+        } else if (q.score_aggregation === "max") {
+          totalScore += Math.max(0, ...sources.map((x) => x.a?.score || 0));
+          maxPossible += Math.max(0, ...sources.map((x) => x.q.max_score || 0));
+        }
+        return;
+      }
       const answer = answers[q.id];
       totalScore += answer?.score || 0;
       maxPossible += q.max_score;
