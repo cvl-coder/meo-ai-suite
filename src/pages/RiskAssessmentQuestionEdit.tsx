@@ -393,9 +393,13 @@ export default function RiskAssessmentQuestionEdit() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Context from Other Questions</CardTitle>
+                <CardTitle className="text-base">
+                  {formData.question_type === "summary" ? "Questions to Summarise" : "Context from Other Questions"}
+                </CardTitle>
                 <CardDescription>
-                  Include answers and notes from any other question when generating AI notes.
+                  {formData.question_type === "summary"
+                    ? "Select the questions whose answers and notes this summary will roll up. The AI receives them in the order shown."
+                    : "Include answers and notes from any other question when generating AI notes."}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -405,34 +409,73 @@ export default function RiskAssessmentQuestionEdit() {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
-                    {otherQuestions.map((q) => (
-                      <label key={q.id} className="flex items-start gap-3 cursor-pointer rounded-md border p-2 hover:bg-muted/40">
-                        <Checkbox
-                          checked={formData.context_question_ids.includes(q.id)}
-                          onCheckedChange={(checked) => {
-                            setFormData((p) => ({
-                              ...p,
-                              context_question_ids: checked
-                                ? [...p.context_question_ids, q.id]
-                                : p.context_question_ids.filter((id) => id !== q.id),
-                            }));
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm">
-                            <span className="text-muted-foreground mr-1">#{allQuestions.findIndex((aq) => aq.id === q.id) + 1}</span>
-                            {q.question_text}
-                          </span>
-                          <div className="mt-1">
-                            <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
+                    {otherQuestions.map((q) => {
+                      const isChecked = formData.context_question_ids.includes(q.id);
+                      const orderIdx = isChecked ? formData.context_question_ids.indexOf(q.id) + 1 : null;
+                      return (
+                        <label key={q.id} className="flex items-start gap-3 cursor-pointer rounded-md border p-2 hover:bg-muted/40">
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              setFormData((p) => ({
+                                ...p,
+                                context_question_ids: checked
+                                  ? [...p.context_question_ids, q.id]
+                                  : p.context_question_ids.filter((id) => id !== q.id),
+                              }));
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm">
+                              {formData.question_type === "summary" && orderIdx !== null && (
+                                <Badge variant="default" className="mr-2 text-[10px]">{orderIdx}</Badge>
+                              )}
+                              <span className="text-muted-foreground mr-1">#{allQuestions.findIndex((aq) => aq.id === q.id) + 1}</span>
+                              {q.question_text}
+                            </span>
+                            <div className="mt-1">
+                              <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
+                            </div>
                           </div>
-                        </div>
-                      </label>
-                    ))}
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {formData.question_type === "summary" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Score Aggregation</CardTitle>
+                  <CardDescription>
+                    Optional. How this summary's own score is calculated from the questions above.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Select
+                    value={formData.score_aggregation}
+                    onValueChange={(v) => setFormData((p) => ({ ...p, score_aggregation: v as any }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None — narrative only</SelectItem>
+                      <SelectItem value="sum">Sum of source scores</SelectItem>
+                      <SelectItem value="average">Average of source scores</SelectItem>
+                      <SelectItem value="max">Highest source score</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.score_aggregation !== "none" && (
+                    <p className="text-xs text-muted-foreground">
+                      Computed at runtime from the user's actual answers; max score is derived automatically.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
