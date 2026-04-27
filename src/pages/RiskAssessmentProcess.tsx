@@ -234,7 +234,7 @@ export default function RiskAssessmentProcess() {
         ? `\n\n**IMPORTANT — You MUST follow these additional instructions:**\n${question.ai_prompt_template.trim()}\n`
         : ``;
 
-      // Build context from referenced questions
+      // Build context from referenced questions (numbered to match user-visible question numbers)
       const contextIds: string[] = Array.isArray(question.context_question_ids) ? question.context_question_ids : [];
       let contextBlock = "";
       if (contextIds.length > 0) {
@@ -242,16 +242,17 @@ export default function RiskAssessmentProcess() {
           .map((cid) => {
             const cq = questions.find((q) => q.id === cid);
             if (!cq) return null;
+            const qNumber = questions.findIndex((q) => q.id === cid) + 1;
             const ca = getAnswer(cid);
-            const caLabel = ca.selected_option_label || ca.selected_option_labels?.join(", ") || `Score ${ca.score}`;
-            let part = `Context from: ${cq.question_text}\nAnswer: ${caLabel}\nScore: ${ca.score} / ${cq.max_score}`;
-            if (ca.followup_text) part += `\nFollow-up details: ${ca.followup_text}`;
-            if (ca.notes) part += `\nAI Note: ${ca.notes}`;
+            const caLabel = ca.selected_option_label || ca.selected_option_labels?.join(", ") || `(no selection, score ${ca.score})`;
+            let part = `Spørgsmål ${qNumber} / Question ${qNumber}: ${cq.question_text}\nAnswer / Svar: ${caLabel}\nScore: ${ca.score} / ${cq.max_score}`;
+            if (ca.followup_text) part += `\nFollow-up details / Uddybning: ${ca.followup_text}`;
+            if (ca.notes) part += `\nExisting AI Note: ${ca.notes}`;
             return part;
           })
           .filter(Boolean);
         if (contextParts.length > 0) {
-          contextBlock = `\n\n--- Context from related questions ---\n${contextParts.join("\n\n")}\n--- End of context ---\n`;
+          contextBlock = `\n\n--- Context from related questions / Kontekst fra relaterede spørgsmål ---\n${contextParts.join("\n\n")}\n--- End of context ---\nIMPORTANT: You MUST consider the answers from the related questions above when generating your response. If your instructions reference a specific question number (e.g. "spørgsmål 3"), use the matching numbered context above.\n`;
         }
       }
 
