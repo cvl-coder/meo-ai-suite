@@ -35,6 +35,7 @@ type Question = {
   ai_prompt_template: string;
   question_type: string;
   context_question_ids: string[];
+  score_aggregation?: "none" | "sum" | "average" | "max";
 };
 
 export default function RiskAssessmentQuestionEdit() {
