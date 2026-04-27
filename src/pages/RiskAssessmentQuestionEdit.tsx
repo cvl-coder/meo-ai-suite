@@ -178,9 +178,8 @@ export default function RiskAssessmentQuestionEdit() {
     );
   }
 
-  const currentSortOrder = editingQuestion ? editingQuestion.sort_order : formData.sort_order;
-  const earlierQuestions = allQuestions.filter(
-    (q) => q.id !== editingQuestion?.id && q.enabled && q.sort_order < currentSortOrder
+  const otherQuestions = allQuestions.filter(
+    (q) => q.id !== editingQuestion?.id && q.enabled
   );
 
   return (
@@ -370,17 +369,17 @@ export default function RiskAssessmentQuestionEdit() {
               <CardHeader>
                 <CardTitle className="text-base">Context from Other Questions</CardTitle>
                 <CardDescription>
-                  Include answers and notes from selected earlier questions when generating AI notes.
+                  Include answers and notes from any other question when generating AI notes.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {earlierQuestions.length === 0 ? (
+                {otherQuestions.length === 0 ? (
                   <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                    No earlier questions available.
+                    No other questions available.
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
-                    {earlierQuestions.map((q) => (
+                    {otherQuestions.map((q) => (
                       <label key={q.id} className="flex items-start gap-3 cursor-pointer rounded-md border p-2 hover:bg-muted/40">
                         <Checkbox
                           checked={formData.context_question_ids.includes(q.id)}
