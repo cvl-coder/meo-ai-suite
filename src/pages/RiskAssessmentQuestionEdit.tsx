@@ -373,13 +373,13 @@ export default function RiskAssessmentQuestionEdit() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {earlierQuestions.length === 0 ? (
+                {otherQuestions.length === 0 ? (
                   <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
                     No earlier questions available.
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
-                    {earlierQuestions.map((q) => (
+                    {otherQuestions.map((q) => (
                       <label key={q.id} className="flex items-start gap-3 cursor-pointer rounded-md border p-2 hover:bg-muted/40">
                         <Checkbox
                           checked={formData.context_question_ids.includes(q.id)}
