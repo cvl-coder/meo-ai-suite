@@ -928,9 +928,6 @@ export default function RiskAssessmentProcess() {
                                     {q.question_text}
                                   </Label>
                                 </div>
-                                {q.description && (
-                                  <p className="text-xs text-muted-foreground">{q.description}</p>
-                                )}
                               </div>
                               {q.score_aggregation && q.score_aggregation !== "none" && (
                                 <Badge variant="outline" className="text-xs font-mono shrink-0">
