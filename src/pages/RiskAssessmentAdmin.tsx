@@ -13,7 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Plus, Loader2, GripVertical, Pencil, Trash2, Save, X, Eye, AlertTriangle } from "lucide-react";
+import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Save, X, Eye, AlertTriangle } from "lucide-react";
 
 type AnswerOption = {
   id?: string;
@@ -155,6 +155,28 @@ export default function RiskAssessmentAdmin() {
     setAnswerOptions((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const moveQuestion = async (index: number, direction: "up" | "down") => {
+    const neighborIndex = direction === "up" ? index - 1 : index + 1;
+    if (neighborIndex < 0 || neighborIndex >= questions.length) return;
+    const current = questions[index];
+    const neighbor = questions[neighborIndex];
+
+    // Optimistically reorder local list
+    const reordered = [...questions];
+    reordered[index] = neighbor;
+    reordered[neighborIndex] = current;
+    setQuestions(reordered);
+
+    const [r1, r2] = await Promise.all([
+      supabase.from("risk_assessment_questions").update({ sort_order: neighbor.sort_order }).eq("id", current.id),
+      supabase.from("risk_assessment_questions").update({ sort_order: current.sort_order }).eq("id", neighbor.id),
+    ]);
+    if (r1.error || r2.error) {
+      toast({ title: "Error reordering", description: (r1.error || r2.error)?.message, variant: "destructive" });
+      loadData();
+    }
+  };
+
   const saveQuestion = async () => {
     if (!formData.question_text.trim()) {
       toast({ title: "Question text required", variant: "destructive" });
@@ -278,10 +300,31 @@ export default function RiskAssessmentAdmin() {
               </Card>
             ) : (
               <div className="space-y-2">
-                {questions.map((q) => (
+                {questions.map((q, idx) => (
                   <Card key={q.id} className={`transition-opacity ${!q.enabled ? "opacity-50" : ""}`}>
                     <CardContent className="flex items-center gap-3 py-3">
-                      <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="flex flex-col shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          disabled={idx === 0}
+                          onClick={() => moveQuestion(idx, "up")}
+                          aria-label="Move up"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          disabled={idx === questions.length - 1}
+                          onClick={() => moveQuestion(idx, "down")}
+                          aria-label="Move down"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{q.question_text}</p>
                         <div className="flex gap-2 mt-1">
