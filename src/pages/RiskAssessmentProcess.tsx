@@ -513,6 +513,7 @@ export default function RiskAssessmentProcess() {
         question_id: questionId,
         score: answer.score,
         notes: answer.notes,
+        followup_text: answer.followup_text || "",
       });
 
       setSavedAnswers((prev) => new Set(prev).add(questionId));
@@ -561,6 +562,7 @@ export default function RiskAssessmentProcess() {
         question_id: a.question_id,
         score: a.score,
         notes: a.notes,
+        followup_text: a.followup_text || "",
       }));
 
       if (answerRows.length > 0) {
