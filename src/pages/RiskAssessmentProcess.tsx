@@ -752,23 +752,37 @@ export default function RiskAssessmentProcess() {
                                   ? (answer.selected_option_labels || []).includes(opt.label)
                                   : answer.selected_option_label === opt.label;
                                 return (
-                                  <button
-                                    key={opt.id}
-                                    type="button"
-                                    onClick={() => selectAnswerOption(q, opt)}
-                                    className={`w-full text-left rounded-lg border-2 px-4 py-3 text-sm transition-colors flex items-center gap-3 ${
-                                      isSelected
-                                        ? "border-primary bg-primary/5 font-medium"
-                                        : "border-border hover:border-primary/40 hover:bg-muted/50"
-                                    }`}
-                                  >
-                                    {isMulti && (
-                                      <span className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border ${isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground"}`}>
-                                        {isSelected && <span className="text-[10px]">✓</span>}
-                                      </span>
+                                  <div key={opt.id} className="space-y-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => selectAnswerOption(q, opt)}
+                                      className={`w-full text-left rounded-lg border-2 px-4 py-3 text-sm transition-colors flex items-center gap-3 ${
+                                        isSelected
+                                          ? "border-primary bg-primary/5 font-medium"
+                                          : "border-border hover:border-primary/40 hover:bg-muted/50"
+                                      }`}
+                                    >
+                                      {isMulti && (
+                                        <span className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border ${isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground"}`}>
+                                          {isSelected && <span className="text-[10px]">✓</span>}
+                                        </span>
+                                      )}
+                                      {opt.label}
+                                    </button>
+                                    {isSelected && opt.requires_followup && (
+                                      <div className="pl-4 space-y-1">
+                                        <Label className="text-xs text-muted-foreground">
+                                          {opt.followup_label || "Please provide additional details"}
+                                        </Label>
+                                        <Textarea
+                                          value={answer.followup_text || ""}
+                                          onChange={(e) => updateAnswer(q.id, { followup_text: e.target.value })}
+                                          className="h-20 text-sm"
+                                          placeholder="Type your answer here..."
+                                        />
+                                      </div>
                                     )}
-                                    {opt.label}
-                                  </button>
+                                  </div>
                                 );
                               })}
                             </div>
