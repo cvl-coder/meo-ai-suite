@@ -117,13 +117,25 @@ export default function RiskAssessmentQuestionEdit() {
     }
     setSaving(true);
 
-    const derivedMaxScore = answerOptions.length > 0
-      ? (formData.question_type === "multi_select"
-        ? answerOptions.reduce((sum, o) => sum + o.score, 0)
-        : Math.max(...answerOptions.map((o) => o.score), 0))
-      : formData.max_score;
+    const isSummary = formData.question_type === "summary";
 
-    const questionPayload = { ...formData, max_score: derivedMaxScore };
+    let derivedMaxScore = formData.max_score;
+    if (isSummary) {
+      const sources = allQuestions.filter((q) => formData.context_question_ids.includes(q.id));
+      if (formData.score_aggregation === "sum" || formData.score_aggregation === "average") {
+        derivedMaxScore = sources.reduce((s, q) => s + (q.max_score || 0), 0);
+      } else if (formData.score_aggregation === "max") {
+        derivedMaxScore = Math.max(0, ...sources.map((q) => q.max_score || 0));
+      } else {
+        derivedMaxScore = 0;
+      }
+    } else if (answerOptions.length > 0) {
+      derivedMaxScore = formData.question_type === "multi_select"
+        ? answerOptions.reduce((sum, o) => sum + o.score, 0)
+        : Math.max(...answerOptions.map((o) => o.score), 0);
+    }
+
+    const questionPayload = { ...formData, max_score: derivedMaxScore } as any;
 
     let qId = editingQuestion?.id;
 
