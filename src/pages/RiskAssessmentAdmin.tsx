@@ -11,10 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Save, X, Eye, AlertTriangle } from "lucide-react";
+import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Save, Eye, AlertTriangle } from "lucide-react";
 
 type AnswerOption = {
   id?: string;
@@ -62,22 +61,6 @@ export default function RiskAssessmentAdmin() {
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
-
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
-  const [formData, setFormData] = useState({
-    category: "",
-    question_text: "",
-    description: "",
-    max_score: 5,
-    sort_order: 0,
-    enabled: true,
-    ai_prompt_template: "",
-    question_type: "single_select",
-    context_question_ids: [] as string[],
-  });
-  const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
-  const [savingQuestion, setSavingQuestion] = useState(false);
 
   useEffect(() => {
     loadData();
