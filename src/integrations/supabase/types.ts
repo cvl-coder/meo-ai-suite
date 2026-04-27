@@ -174,25 +174,31 @@ export type Database = {
       risk_assessment_answer_options: {
         Row: {
           created_at: string
+          followup_label: string
           id: string
           label: string
           question_id: string
+          requires_followup: boolean
           score: number
           sort_order: number
         }
         Insert: {
           created_at?: string
+          followup_label?: string
           id?: string
           label: string
           question_id: string
+          requires_followup?: boolean
           score?: number
           sort_order?: number
         }
         Update: {
           created_at?: string
+          followup_label?: string
           id?: string
           label?: string
           question_id?: string
+          requires_followup?: boolean
           score?: number
           sort_order?: number
         }
@@ -209,6 +215,7 @@ export type Database = {
       risk_assessment_answers: {
         Row: {
           created_at: string
+          followup_text: string
           id: string
           notes: string | null
           question_id: string
@@ -217,6 +224,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          followup_text?: string
           id?: string
           notes?: string | null
           question_id: string
@@ -225,6 +233,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          followup_text?: string
           id?: string
           notes?: string | null
           question_id?: string
