@@ -884,6 +884,97 @@ export default function RiskAssessmentProcess() {
                     const options = answerOptionsByQuestion[q.id] || [];
                     const hasOptions = options.length > 0;
                     const globalIdx = questions.findIndex((qq) => qq.id === q.id);
+                    const isSummary = q.question_type === "summary";
+
+                    if (isSummary) {
+                      const sourceIds: string[] = Array.isArray(q.context_question_ids) ? q.context_question_ids : [];
+                      const sources = sourceIds
+                        .map((sid) => ({ q: questions.find((qq) => qq.id === sid), a: getAnswer(sid) }))
+                        .filter((s): s is { q: Question; a: Answer } => !!s.q);
+                      const agg = computeSummaryScore(q);
+                      const hasGenerated = !!answer.notes;
+
+                      return (
+                        <Card key={q.id} className="border-primary/30 bg-primary/[0.02]">
+                          <CardContent className="pt-6 space-y-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="default" className="text-[10px]">SUMMARY</Badge>
+                                  <Label className="text-sm font-medium">
+                                    <span className="text-muted-foreground mr-2">#{globalIdx + 1}</span>
+                                    {q.question_text}
+                                  </Label>
+                                </div>
+                                {q.description && (
+                                  <p className="text-xs text-muted-foreground">{q.description}</p>
+                                )}
+                              </div>
+                              {q.score_aggregation && q.score_aggregation !== "none" && (
+                                <Badge variant="outline" className="text-xs font-mono shrink-0">
+                                  {agg.score} / {agg.maxScore}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="rounded-md border bg-background p-3 space-y-1.5">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                Will summarise {sources.length} question{sources.length === 1 ? "" : "s"}
+                              </p>
+                              {sources.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic">
+                                  No source questions configured. Edit this question in the admin to choose what to summarise.
+                                </p>
+                              ) : (
+                                <ul className="space-y-1">
+                                  {sources.map((s, i) => {
+                                    const sNum = questions.findIndex((qq) => qq.id === s.q.id) + 1;
+                                    const lbl = s.a.selected_option_label || s.a.selected_option_labels?.join(", ") || "(no answer yet)";
+                                    return (
+                                      <li key={s.q.id} className="text-xs flex gap-2">
+                                        <span className="text-muted-foreground shrink-0">{i + 1}.</span>
+                                        <span className="text-muted-foreground shrink-0">#{sNum}</span>
+                                        <span className="truncate flex-1">{s.q.question_text}</span>
+                                        <span className="shrink-0 font-medium">→ {lbl}</span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
+                            </div>
+
+                            {hasGenerated && (
+                              <div className="rounded-md border bg-background p-3 prose prose-sm max-w-none text-foreground">
+                                <ReactMarkdown>{answer.notes}</ReactMarkdown>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant={hasGenerated ? "outline" : "default"}
+                                size="sm"
+                                disabled={generatingNoteFor === q.id || sources.length === 0}
+                                onClick={() => generateSummaryForQuestion(q)}
+                                className="gap-2"
+                              >
+                                {generatingNoteFor === q.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                {generatingNoteFor === q.id ? "Generating..." : hasGenerated ? "Regenerate Summary" : "Generate Summary"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={savedAnswers.has(q.id) ? "text-green-600 border-green-300" : ""}
+                                disabled={savingAnswerFor === q.id || !hasGenerated}
+                                onClick={() => saveAnswer(q.id)}
+                              >
+                                {savingAnswerFor === q.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                <span className="ml-1.5">Save</span>
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    }
 
                     return (
                       <Card key={q.id}>
