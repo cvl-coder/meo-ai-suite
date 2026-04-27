@@ -83,6 +83,7 @@ export default function RiskAssessmentQuestionEdit() {
             ai_prompt_template: q.ai_prompt_template || "",
             question_type: q.question_type || "single_select",
             context_question_ids: Array.isArray(q.context_question_ids) ? q.context_question_ids : [],
+            score_aggregation: ((q as any).score_aggregation as any) || "none",
           });
           const { data: opts } = await supabase
             .from("risk_assessment_answer_options")
