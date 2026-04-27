@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const DATA_SOURCE_OPTIONS = [
 ];
 
 export default function RiskAssessmentAdmin() {
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -287,7 +289,7 @@ export default function RiskAssessmentAdmin() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Assessment Questions</h2>
-              <Button onClick={openAddDialog} size="sm" className="gap-2">
+              <Button onClick={() => navigate("/risk-assessment/admin/questions/new")} size="sm" className="gap-2">
                 <Plus className="h-4 w-4" /> Add Question
               </Button>
             </div>
@@ -334,7 +336,7 @@ export default function RiskAssessmentAdmin() {
                         </div>
                       </div>
                       <Switch checked={q.enabled} onCheckedChange={(v) => toggleQuestion(q.id, v)} />
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(q)}>
+                      <Button variant="ghost" size="icon" onClick={() => navigate(`/risk-assessment/admin/questions/${q.id}`)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteQuestion(q.id)}>
