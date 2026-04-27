@@ -741,12 +741,16 @@ export default function RiskAssessmentProcess() {
                     const answer = getAnswer(q.id);
                     const options = answerOptionsByQuestion[q.id] || [];
                     const hasOptions = options.length > 0;
+                    const globalIdx = questions.findIndex((qq) => qq.id === q.id);
 
                     return (
                       <Card key={q.id}>
                         <CardContent className="pt-6 space-y-4">
                           <div className="space-y-1">
-                            <Label className="text-sm font-medium">{q.question_text}</Label>
+                            <Label className="text-sm font-medium">
+                              <span className="text-muted-foreground mr-2">#{globalIdx + 1}</span>
+                              {q.question_text}
+                            </Label>
                           </div>
 
                           {hasOptions ? (
