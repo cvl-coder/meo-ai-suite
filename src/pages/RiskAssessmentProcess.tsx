@@ -342,7 +342,146 @@ export default function RiskAssessmentProcess() {
     setGeneratingNoteFor(null);
   };
 
-  const generateAiSummary = async () => {
+  // Compute the aggregated score for a Summary question from its source questions' answers
+  const computeSummaryScore = (q: Question): { score: number; maxScore: number } => {
+    const sourceIds: string[] = Array.isArray(q.context_question_ids) ? q.context_question_ids : [];
+    const sources = sourceIds
+      .map((sid) => ({ q: questions.find((qq) => qq.id === sid), a: getAnswer(sid) }))
+      .filter((s): s is { q: Question; a: Answer } => !!s.q);
+    if (sources.length === 0) return { score: 0, maxScore: 0 };
+    const agg = q.score_aggregation || "none";
+    if (agg === "sum") {
+      return {
+        score: sources.reduce((s, x) => s + (x.a.score || 0), 0),
+        maxScore: sources.reduce((s, x) => s + (x.q.max_score || 0), 0),
+      };
+    }
+    if (agg === "average") {
+      const total = sources.reduce((s, x) => s + (x.a.score || 0), 0);
+      const maxTotal = sources.reduce((s, x) => s + (x.q.max_score || 0), 0);
+      return { score: Math.round(total / sources.length), maxScore: Math.round(maxTotal / sources.length) };
+    }
+    if (agg === "max") {
+      return {
+        score: Math.max(0, ...sources.map((x) => x.a.score || 0)),
+        maxScore: Math.max(0, ...sources.map((x) => x.q.max_score || 0)),
+      };
+    }
+    return { score: 0, maxScore: 0 };
+  };
+
+  const generateSummaryForQuestion = async (question: Question) => {
+    setGeneratingNoteFor(question.id);
+    try {
+      const outputLang = settings?.output_language || "English";
+
+      const rawGlobalPrompt = settings?.ai_prompt_template?.trim()
+        ? settings.ai_prompt_template.trim()
+        : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
+      const languageLinePattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
+      const cleanedGlobalPrompt = rawGlobalPrompt
+        .split("\n")
+        .filter((line) => !languageLinePattern.test(line))
+        .join("\n");
+
+      const systemMessage =
+        `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
+        `You MUST write your ENTIRE response in ${outputLang}. Every single word must be in ${outputLang}.\n` +
+        `Do NOT use any other language, even if the input or instructions below contain text in another language.\n\n` +
+        `${cleanedGlobalPrompt}\n\n` +
+        `You are writing a SUMMARY that aggregates the answers of several earlier risk-assessment questions.\n` +
+        `Rules:\n` +
+        `- Base your summary strictly on the data provided below — do not invent facts.\n` +
+        `- Reference the source questions by their numbers (#1, #2, ...) when relevant.\n` +
+        `- Be concise, professional, and focused on risk implications.`;
+
+      const sourceIds: string[] = Array.isArray(question.context_question_ids) ? question.context_question_ids : [];
+      const sourceBlocks = sourceIds
+        .map((sid, i) => {
+          const sq = questions.find((qq) => qq.id === sid);
+          if (!sq) return null;
+          const sa = getAnswer(sid);
+          const globalNum = questions.findIndex((qq) => qq.id === sid) + 1;
+          const label = sa.selected_option_label || sa.selected_option_labels?.join(", ") || `(no selection)`;
+          let block = `${i + 1}. [#${globalNum}] ${sq.question_text}\n   Answer: ${label}  (score ${sa.score}/${sq.max_score})`;
+          if (sa.followup_text) block += `\n   Follow-up: ${sa.followup_text}`;
+          if (sa.notes) block += `\n   Existing note: ${sa.notes}`;
+          return block;
+        })
+        .filter(Boolean)
+        .join("\n\n");
+
+      const instructions = question.ai_prompt_template?.trim()
+        ? `\n\nInstructions for this summary:\n${question.ai_prompt_template.trim()}`
+        : ``;
+
+      const userPrompt =
+        `Write a summary for the risk-assessment section titled: "${question.question_text}"\n` +
+        (question.description ? `Background: ${question.description}\n` : ``) +
+        `\n--- Source questions and their current answers ---\n${sourceBlocks || "(no source questions selected)"}\n--- End ---` +
+        instructions +
+        `\n\nWrite the summary now in ${outputLang}.`;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const authSession = (await supabase.auth.getSession()).data.session;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: supabaseKey,
+          Authorization: `Bearer ${authSession?.access_token || supabaseKey}`,
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: userPrompt },
+          ],
+          model: settings?.ai_model || "llama3.1:latest",
+          provider: "custom",
+          custom_endpoint: settings?.ai_endpoint_url || "http://core.meo.io/v1",
+          custom_api_key: settings?.ai_api_key || "",
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`AI error (${response.status}): ${errText.substring(0, 200)}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+      const decoder = new TextDecoder();
+      let buffer = "", fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith("data: ")) continue;
+          const d = t.slice(6);
+          if (d === "[DONE]") continue;
+          try {
+            const p = JSON.parse(d);
+            const delta = p.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullText += delta;
+              const agg = computeSummaryScore(question);
+              updateAnswer(question.id, { notes: fullText, score: agg.score });
+            }
+          } catch {}
+        }
+      }
+    } catch (err: any) {
+      toast({ title: "Error generating summary", description: err.message, variant: "destructive" });
+    }
+    setGeneratingNoteFor(null);
+  };
+
     if (!session?.id) return;
     const meoToken = getMeoToken();
     const customerId = session.customer_id || localStorage.getItem("selectedCustomerId") || "";
