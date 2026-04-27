@@ -274,7 +274,9 @@ export default function RiskAssessmentProcess() {
       // Always append factual context so the AI never hallucinates
       const factBlock = `\n\n--- Factual Context (use ONLY this data) ---\nQuestion: ${question.question_text}` +
         (questionDescription ? `\nBackground: ${questionDescription}` : ``) +
-        `\nSelected Answer: ${selectedLabel}\nScore: ${currentAnswer.score} / ${question.max_score}\nNotes: ${currentAnswer.notes || "(none)"}`;
+        `\nSelected Answer: ${selectedLabel}\nScore: ${currentAnswer.score} / ${question.max_score}` +
+        (currentAnswer.followup_text ? `\nFollow-up details: ${currentAnswer.followup_text}` : ``) +
+        `\nNotes: ${currentAnswer.notes || "(none)"}`;
       userPrompt += factBlock;
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
