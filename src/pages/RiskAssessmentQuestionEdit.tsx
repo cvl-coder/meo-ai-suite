@@ -230,6 +230,28 @@ export default function RiskAssessmentQuestionEdit() {
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
+                <CardTitle className="text-base">Question Type</CardTitle>
+                <CardDescription>
+                  Choose how this question behaves. <strong>Single / Multi select</strong> ask the assessor a question.
+                  <strong> Summary</strong> generates an AI roll-up of other questions' answers — no user input.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Select value={formData.question_type} onValueChange={(v) => setFormData((p) => ({ ...p, question_type: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single_select">Single Select</SelectItem>
+                    <SelectItem value="multi_select">Multi Select</SelectItem>
+                    <SelectItem value="summary">Summary (AI roll-up)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle className="text-base">Question</CardTitle>
                 <CardDescription>The question shown to the assessor.</CardDescription>
               </CardHeader>
