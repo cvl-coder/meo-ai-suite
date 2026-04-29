@@ -7,7 +7,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import AiAdmin from "./pages/AiAdmin";
 import AiSearchConfig from "./pages/AiSearchConfig";
-import AiTestData from "./pages/AiTestData";
 import Integration from "./pages/Integration";
 import ChatPlayground from "./pages/ChatPlayground";
 import ApiTest from "./pages/ApiTest";
@@ -34,7 +33,6 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/ai-admin" element={guarded(<AiAdmin />)} />
             <Route path="/ai-admin/config/:functionId" element={guarded(<AiSearchConfig />)} />
-            <Route path="/ai-admin/test-data" element={guarded(<AiTestData />)} />
             <Route path="/integration" element={guarded(<Integration />)} />
             <Route path="/chat" element={guarded(<ChatPlayground />)} />
             <Route path="/risk-assessment" element={guarded(<RiskAssessment />)} />
