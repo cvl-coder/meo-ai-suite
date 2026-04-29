@@ -613,10 +613,6 @@ export default function AiAdmin() {
           <p className="text-muted-foreground text-lg">
             Enable and configure AI-powered services for your MEO workspace.
           </p>
-          <Button variant="outline" size="sm" onClick={() => navigate("/ai-admin/test-data")} className="gap-2 mt-2">
-            <Database className="h-4 w-4" />
-            Manage Test Data
-          </Button>
         </div>
 
         {loading ? (
@@ -846,10 +842,6 @@ export default function AiAdmin() {
                               {allTestData.length === 0 ? (
                                 <div className="flex items-center gap-3 py-4">
                                   <p className="text-sm text-muted-foreground">No test data available.</p>
-                                  <Button variant="outline" size="sm" onClick={() => navigate("/ai-admin/test-data")} className="gap-1.5">
-                                    <Database className="h-3.5 w-3.5" />
-                                    Add Test Data
-                                  </Button>
                                 </div>
                               ) : (
                                 <>
