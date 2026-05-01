@@ -331,15 +331,13 @@ export default function RiskAssessmentAdmin() {
                   <div className="space-y-2">
                     <Label className="text-sm">Model</Label>
                     <Select
-                      value={settings?.ai_model || "llama3.1:latest"}
+                      value={settings?.ai_model || "gemma2:9b"}
                       onValueChange={(v) => settings && setSettings({ ...settings, ai_model: v })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="llama3.1:latest">llama3.1:latest</SelectItem>
-                        <SelectItem value="mistral-nemo:latest">mistral-nemo:latest</SelectItem>
                         <SelectItem value="gemma2:9b">gemma2:9b</SelectItem>
                         <SelectItem value="glm-4.7-flash:latest">glm-4.7-flash:latest</SelectItem>
                         <SelectItem value="qwen3:14b">qwen3:14b</SelectItem>

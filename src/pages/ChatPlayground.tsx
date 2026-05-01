@@ -18,7 +18,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 export default function ChatPlayground() {
   const [customEndpoint, setCustomEndpoint] = useState("http://core.meo.io/v1");
   const [customApiKey, setCustomApiKey] = useState("");
-  const [customModel, setCustomModel] = useState("llama3.1:latest");
+  const [customModel, setCustomModel] = useState("gemma2:9b");
   const [systemPrompt, setSystemPrompt] = useState("You are a helpful AI assistant.");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -158,8 +158,6 @@ export default function ChatPlayground() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="llama3.1:latest">llama3.1:latest</SelectItem>
-                      <SelectItem value="mistral-nemo:latest">mistral-nemo:latest</SelectItem>
                       <SelectItem value="gemma2:9b">gemma2:9b</SelectItem>
                       <SelectItem value="glm-4.7-flash:latest">glm-4.7-flash:latest</SelectItem>
                       <SelectItem value="qwen3:14b">qwen3:14b</SelectItem>

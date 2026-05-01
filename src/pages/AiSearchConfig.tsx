@@ -140,7 +140,7 @@ export default function AiSearchConfig() {
         client_fields: (data.client_fields as any) || [],
         ai_endpoint_url: data.ai_endpoint_url || "http://core.meo.io/v1",
         ai_api_key: "", // Never loaded from server
-        ai_model: data.ai_model || "llama3.1:latest",
+        ai_model: data.ai_model || "gemma2:9b",
         output_language: data.output_language || "English",
       } as SearchConfig);
     } else {
@@ -411,7 +411,7 @@ export default function AiSearchConfig() {
                 <div className="space-y-2">
                   <Label>Model Name</Label>
                   <Input
-                    placeholder="e.g. llama3.1:latest, mistral-nemo:latest, gemma2:9b, glm-4.7-flash:latest, qwen3:14b"
+                    placeholder="e.g. gemma2:9b, glm-4.7-flash:latest, qwen3:14b"
                     value={config.ai_model}
                     onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
                   />
