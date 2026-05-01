@@ -411,7 +411,7 @@ export default function AiSearchConfig() {
                 <div className="space-y-2">
                   <Label>Model Name</Label>
                   <Input
-                    placeholder="e.g. gpt-4, llama-3, mistral-large"
+                    placeholder="e.g. llama3.1:latest, mistral-nemo:latest, gemma2:9b, glm-4.7-flash:latest"
                     value={config.ai_model}
                     onChange={(e) => setConfig({ ...config, ai_model: e.target.value })}
                   />
