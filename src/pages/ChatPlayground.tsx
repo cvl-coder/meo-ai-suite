@@ -161,6 +161,7 @@ export default function ChatPlayground() {
                       <SelectItem value="llama3.1:latest">llama3.1:latest</SelectItem>
                       <SelectItem value="mistral-nemo:latest">mistral-nemo:latest</SelectItem>
                       <SelectItem value="gemma2:9b">gemma2:9b</SelectItem>
+                      <SelectItem value="glm-4.7-flash:latest">glm-4.7-flash:latest</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
