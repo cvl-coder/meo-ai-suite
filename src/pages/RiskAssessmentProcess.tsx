@@ -523,11 +523,14 @@ export default function RiskAssessmentProcess() {
         ? `\n\nInstructions for this summary:\n${question.ai_prompt_template.trim()}`
         : ``;
 
+      const caseDataBlock = await fetchCaseDataBlock(Array.isArray(question.case_data_sources) ? question.case_data_sources : []);
+
       const userPrompt =
         `Write a summary for the risk-assessment section titled: "${question.question_text}"\n` +
         (question.description ? `Background: ${question.description}\n` : ``) +
         `\n--- Source questions and their current answers ---\n${sourceBlocks || "(no source questions selected)"}\n--- End ---` +
         instructions +
+        caseDataBlock +
         `\n\nWrite the summary now in ${outputLang}.`;
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
