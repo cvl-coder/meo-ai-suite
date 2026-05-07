@@ -188,7 +188,12 @@ export default function RiskAssessment() {
   const handleWorkspaceChange = async (customerId: string) => {
     setSelectedCustomerId(customerId);
     localStorage.setItem("selectedCustomerId", customerId);
-    setCaseEntities([]); setSelectedEntityIds([]);
+    // Clear stale case/entities from previous workspace to avoid cross-workspace getCase 404s
+    setSelectedCaseId("");
+    setCaseOptions([]);
+    setCaseEntities([]);
+    setSelectedEntityIds([]);
+    localStorage.removeItem(`meo_case_id:${customerId}`);
     await loadCasesForWorkspace(customerId);
   };
 
