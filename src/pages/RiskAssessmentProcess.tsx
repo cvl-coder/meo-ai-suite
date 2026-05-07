@@ -70,6 +70,7 @@ export default function RiskAssessmentProcess() {
   const [generatingNoteFor, setGeneratingNoteFor] = useState<string | null>(null);
   const [savingAnswerFor, setSavingAnswerFor] = useState<string | null>(null);
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
+  const [caseDataCache, setCaseDataCache] = useState<Record<string, any>>({});
 
   // Load questions, answer options, session, and settings
   useEffect(() => {
