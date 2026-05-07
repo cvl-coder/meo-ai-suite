@@ -222,6 +222,86 @@ export default function RiskAssessmentProcess() {
     [settings]
   );
 
+  const fetchCaseDataBlock = useCallback(async (sources: string[]): Promise<string> => {
+    if (!sources || sources.length === 0) return "";
+    const meoToken = getMeoToken();
+    const customerId = session?.customer_id || localStorage.getItem("selectedCustomerId") || "";
+    const caseId = session?.case_id || localStorage.getItem(`meo_case_id:${customerId}`) || "";
+    if (!meoToken || !customerId || !caseId) return "";
+
+    const invoke = async (action: string, payload: Record<string, any>) => {
+      const cacheKey = `${action}:${JSON.stringify(payload)}`;
+      if (caseDataCache[cacheKey]) return caseDataCache[cacheKey];
+      const { data, error } = await supabase.functions.invoke("meo-api-test", { body: { action, payload } });
+      if (error || data?.error) return null;
+      setCaseDataCache((p) => ({ ...p, [cacheKey]: data }));
+      return data;
+    };
+
+    const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + "\n...[truncated]" : s);
+    const parts: string[] = [];
+
+    let caseData: any = null;
+    const needsCase = sources.some((s) => ["main_company", "affiliated_companies", "individuals"].includes(s));
+    if (needsCase) {
+      caseData = await invoke("getCase", { caseId, customerId, personToken: meoToken });
+    }
+    const cd = caseData?.data || caseData;
+
+    if (sources.includes("main_company") && cd) {
+      const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
+      if (main) {
+        parts.push(`### Main company\n${JSON.stringify({
+          id: main.id, name: main.name, registrationId: main.relationsIdentifier,
+          country: main.country, type: main.type, role: main.role, status: main.status,
+        }, null, 2)}`);
+      }
+    }
+    if (sources.includes("affiliated_companies") && cd) {
+      const list = Array.isArray(cd?.affiliatedCompanies) ? cd.affiliatedCompanies : [];
+      parts.push(`### Affiliated companies (${list.length})\n${truncate(JSON.stringify(list.map((c: any) => ({
+        id: c.id, name: c.name, registrationId: c.relationsIdentifier, country: c.country, role: c.role,
+      })), null, 2))}`);
+    }
+    if (sources.includes("individuals") && cd) {
+      const list = Array.isArray(cd?.individuals) ? cd.individuals : [];
+      parts.push(`### Individuals on case (${list.length})\n${truncate(JSON.stringify(list.map((i: any) => ({
+        id: i.id, name: i.name, role: i.role, type: i.type,
+      })), null, 2))}`);
+    }
+    if (sources.includes("case_risk")) {
+      const r = await invoke("getRiskAssessments", { caseId, customerId, personToken: meoToken, page: 1, limit: 50 });
+      if (r) parts.push(`### Case-level risk assessments\n${truncate(JSON.stringify(r?.data || r, null, 2))}`);
+    }
+    if (sources.includes("entity_risk") && cd) {
+      const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
+      if (main?.id) {
+        const r = await invoke("getEntityRiskAssessments", { entityId: main.id, customerId, personToken: meoToken, page: 1, limit: 50 });
+        if (r) parts.push(`### Risk assessments for main company\n${truncate(JSON.stringify(r?.data || r, null, 2))}`);
+      }
+    }
+    if (sources.includes("custom_properties") && cd) {
+      const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
+      if (main?.id) {
+        const r = await invoke("getEntityCustomProperties", { entityId: main.id, customerId, personToken: meoToken, page: 1, limit: 100 });
+        if (r) parts.push(`### Custom properties (main company)\n${truncate(JSON.stringify(r?.data || r, null, 2))}`);
+      }
+    }
+    if (sources.includes("documents") && cd) {
+      const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
+      if (main?.id) {
+        const r = await invoke("getEntityUserdata", { entityId: main.id, customerId, personToken: meoToken });
+        const docs = Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []);
+        parts.push(`### Documents on main company (${docs.length})\n${truncate(JSON.stringify(docs.slice(0, 50).map((d: any) => ({
+          id: d.id, name: d.name || d.filename, format: d.format, createdAt: d.createdAt,
+        })), null, 2))}`);
+      }
+    }
+
+    if (parts.length === 0) return "";
+    return `\n\n--- Case Context (from MEO) ---\n${parts.join("\n\n")}\n--- End of case context ---\n`;
+  }, [caseDataCache, session]);
+
   const generateNoteForQuestion = async (question: Question) => {
     setGeneratingNoteFor(question.id);
     try {
