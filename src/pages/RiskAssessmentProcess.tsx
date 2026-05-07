@@ -386,6 +386,10 @@ export default function RiskAssessmentProcess() {
         `\nNotes: ${currentAnswer.notes || "(none)"}`;
       userPrompt += factBlock;
 
+      // Inject MEO case data selected for this question
+      const caseDataBlock = await fetchCaseDataBlock(Array.isArray(question.case_data_sources) ? question.case_data_sources : []);
+      if (caseDataBlock) userPrompt += caseDataBlock;
+
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const authSession = (await supabase.auth.getSession()).data.session;
