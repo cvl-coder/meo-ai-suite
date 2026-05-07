@@ -464,6 +464,41 @@ export default function RiskAssessmentQuestionEdit() {
               </CardContent>
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Case Data to Include</CardTitle>
+                <CardDescription>
+                  Select which MEO case information should be fetched and added to the AI prompt for this question.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {CASE_DATA_SOURCES.map((src) => {
+                    const isChecked = formData.case_data_sources.includes(src.value);
+                    return (
+                      <label key={src.value} className="flex items-start gap-3 cursor-pointer rounded-md border p-2 hover:bg-muted/40">
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            setFormData((p) => ({
+                              ...p,
+                              case_data_sources: checked
+                                ? [...p.case_data_sources, src.value]
+                                : p.case_data_sources.filter((v) => v !== src.value),
+                            }));
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{src.label}</p>
+                          <p className="text-xs text-muted-foreground">{src.description}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
             {formData.question_type === "summary" && (
               <Card>
                 <CardHeader>
