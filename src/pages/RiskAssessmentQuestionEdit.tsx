@@ -96,6 +96,7 @@ export default function RiskAssessmentQuestionEdit() {
             ai_prompt_template: q.ai_prompt_template || "",
             question_type: q.question_type || "single_select",
             context_question_ids: Array.isArray(q.context_question_ids) ? q.context_question_ids : [],
+            case_data_sources: Array.isArray((q as any).case_data_sources) ? (q as any).case_data_sources : [],
             score_aggregation: ((q as any).score_aggregation as any) || "none",
           });
           const { data: opts } = await supabase
