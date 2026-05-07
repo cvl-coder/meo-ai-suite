@@ -1,85 +1,64 @@
-# Rethink: Aggregation / Summary Questions
+# Per-question case data context
 
-## The actual need
+Currently, when an AI note is generated for a question, the prompt only contains:
+- The question text + answer
+- Other questions' answers (via `context_question_ids`)
+- Question-specific instructions (`ai_prompt_template`)
 
-Some questions are not "answer one thing" questions — they are **summary questions** whose AI note should aggregate the answers and notes of one or more earlier questions. This can happen:
+The MEO case data (main company info, risk assessments, documents, custom properties, etc.) is **not** attached at the question level. There is a global `data_sources` setting (case_risk / entity_risk) but it is only used by the conclusion-level summary, not per-question AI notes.
 
-- **At the end** of a risk assessment (an overall conclusion question), or
-- **Mid-flow** (e.g. a "client risk subtotal" question after questions 1–4, before moving on to transaction risk).
+This plan adds a per-question selector in the admin UI so an admin can pick which MEO case data points should be fetched and injected into that question's AI prompt.
 
-Today's "context from other questions" feature is built for *one question lightly referencing another*. It doesn't fit this pattern — there's no notion of a question whose primary purpose is to summarise others, no preview of what will be summarised, and the prompt machinery treats every question identically.
+## What gets added
 
-## Proposed model: introduce a "Summary" question type
+In **Risk Assessment → Admin → Edit Question**, add a new section **"Case data to include"** with checkboxes for each available data source:
 
-Add a new `question_type` value: **`summary`** (alongside the existing `single_select` / multi-select types).
+- **Main company** — name, org no., country, status, role on case (from `getCase` → `affiliatedCompanies[0]`)
+- **All affiliated companies** — full list with same fields
+- **Individuals on case** — names, roles, types
+- **Case-level risk assessments** — existing scores/levels/notes for the case
+- **Entity-level risk assessments** — for selected entities
+- **Custom properties** — KYC fields stored on the main company
+- **Documents list** — filenames + types attached to entities (no file content)
+- **Compliance checks** — PEP / sanctions / adverse media check results
 
-A summary question:
+Selections are saved per-question. When that question runs its AI note, the edge flow fetches the chosen sources, formats them into a `## Case Context` block, and prepends it to the prompt — same pattern already used for `context_question_ids`.
 
-- Has **no answer options** for the user to pick — there's nothing to score directly.
-- Has a configured **set of source questions** to aggregate (re-using the existing `context_question_ids` jsonb field — no schema change).
-- Optionally has an **aggregation rule** for its own score: `sum`, `average`, `max`, or `none` (default `none` — purely narrative).
-- Has its own `ai_prompt_template` describing *how* to summarise (e.g. "Give a 3-sentence client-risk overview highlighting the highest-risk factors").
-- Renders in the assessment as a **read-only card** with a "Generate summary" button. The generated text is saved into the existing `notes` field on `risk_assessment_answers`, exactly like AI notes today.
-- Re-generating is allowed at any time and pulls the *current* answers of the source questions, so it stays in sync if the user goes back and changes something.
+## User flow
 
-## Admin editing experience
+```text
+Admin → Edit Question
+ ┌────────────────────────────────────┐
+ │ Question text                      │
+ │ Answer options                     │
+ │ AI prompt template                 │
+ │ Context from other questions  [✓]  │
+ │ ── NEW ──                          │
+ │ Case data to include               │
+ │   [✓] Main company                 │
+ │   [ ] Affiliated companies         │
+ │   [✓] Risk assessments (case)      │
+ │   [ ] Documents                    │
+ │   ...                              │
+ └────────────────────────────────────┘
+```
 
-In `RiskAssessmentQuestionEdit.tsx`:
+At runtime, `RiskAssessmentProcess` calls `meo-api-test` for each selected source, builds a context block, and sends it in the AI request alongside the existing question/answer payload.
 
-- Add a **Question Type** selector at the top: `Single select` / `Multi select` / `Summary`.
-- When type = `Summary`:
-  - Hide the "Answer Options" card entirely.
-  - Hide `max_score` / `weight` unless an aggregation rule is chosen.
-  - Replace the current "Context from Other Questions" card with a clearer **"Questions to Summarise"** card — same checkbox list, but framed as the *required input set*, with drag-to-reorder so the admin controls the order they appear in the prompt.
-  - Add a **Score aggregation** dropdown (`None / Sum / Average / Max`). When not `None`, `max_score` is auto-computed (e.g. sum of source `max_score`s for `Sum`/`Average`).
-  - Show a **Live Preview** of the prompt that will be sent, populated with placeholder answers (or the most recent real session's answers if available).
+## Technical notes
 
-## Assessment flow (`RiskAssessmentProcess.tsx`)
+1. **Schema** — add `case_data_sources jsonb DEFAULT '[]'::jsonb` to `risk_assessment_questions`. Values are short keys: `main_company`, `affiliated_companies`, `individuals`, `case_risk`, `entity_risk`, `custom_properties`, `documents`, `checks`.
+2. **Admin UI** — `RiskAssessmentQuestionEdit.tsx`: new checkbox group bound to `formData.case_data_sources`; persisted via existing upsert.
+3. **Runtime** — `RiskAssessmentProcess.tsx` (`generateAiNote` + `runFollowUpSummary`):
+   - Read `question.case_data_sources`
+   - For each key, call the matching `meo-api-test` action (`getCase`, `getRiskAssessments`, `getEntityRiskAssessments`, `getEntityCustomProperties`, `getEntityUserdata`, `getCheckData`)
+   - Cache results per session to avoid refetching across questions
+   - Format into a Markdown `## Case Context` block (compact JSON or bullets), prepend to prompt
+4. **Token safety** — truncate large payloads (e.g. document lists > 50 items, risk assessment notes > 2 KB each) before injection.
+5. **Preview Prompt** in Admin — extend the existing preview to show the case-data block using a sample case, so admins can verify size before saving.
 
-- Detect `question_type === 'summary'` and render a different card:
-  - Title + description.
-  - A bulleted list of the source questions with their current answers (so the user sees what's being summarised).
-  - A "Generate summary" button (and "Regenerate" once one exists).
-  - The generated note is shown in the same notes area used elsewhere.
-- The prompt sent to the AI for a summary question is built from a dedicated template (no `selected_answer` / `score` placeholders since they don't apply). The source questions are injected as a clean numbered block:
+## Out of scope
 
-  ```
-  Summarise the following risk-assessment answers:
-
-  1. <Question 1 text>
-     Answer: <user's selection>  (score X/Y)
-     Follow-up: <text if any>
-     Existing note: <if any>
-
-  2. <Question 2 text>
-     ...
-  ```
-
-  Followed by the admin's `ai_prompt_template` instructions, then the language directive.
-
-- Sidebar / progress: summary questions are marked with a distinct icon and don't count toward "answered N of M" progress (or count separately as "summaries"), since they have no user input.
-
-## Scoring & conclusion view
-
-- If `score_aggregation = none`, the summary question contributes 0 to the total — purely narrative.
-- If `sum` / `average` / `max`, its score is computed from the source questions at save time and stored on the answer row, so the existing total/risk-level logic in the conclusion view keeps working unchanged.
-
-## Backward compatibility
-
-- Existing questions stay `single_select` and behave exactly as today.
-- The current "context from other questions" feature on non-summary questions is **kept as-is** for the lighter use case (one question lightly referencing another).
-- No migration needed: `context_question_ids` already exists, `question_type` already exists as text.
-
-## Files changed
-
-- `src/pages/RiskAssessmentQuestionEdit.tsx` — type selector, hide options for summary, "Questions to Summarise" card, score aggregation, live preview.
-- `src/pages/RiskAssessmentProcess.tsx` — render summary card, dedicated prompt builder, exclude from answered-progress, compute aggregated score on save.
-- `src/pages/RiskAssessmentAdmin.tsx` — show a "Summary" badge on the question list so admins can spot them at a glance.
-- `src/pages/RiskAssessment.tsx` (conclusion view) — show summary notes in their own section above the per-question breakdown.
-
-## What this gives the user
-
-- A first-class way to add roll-up questions wherever they're needed in the flow, not just at the end.
-- The summary always reflects current answers — go back, change Q3, regenerate the summary, done.
-- Clear separation in the admin UI between "scoring questions" and "summary questions".
-- No more typing fragile question numbers into prompts.
+- No changes to the global `data_sources` setting (still drives the final conclusion summary).
+- No new MEO endpoints — only existing `meo-api-test` actions are reused.
+- No file-content extraction from documents (only metadata/filenames).

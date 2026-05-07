@@ -35,8 +35,19 @@ type Question = {
   ai_prompt_template: string;
   question_type: string;
   context_question_ids: string[];
+  case_data_sources?: string[];
   score_aggregation?: "none" | "sum" | "average" | "max";
 };
+
+const CASE_DATA_SOURCES: { value: string; label: string; description: string }[] = [
+  { value: "main_company", label: "Main company", description: "Name, org no., country, role on case." },
+  { value: "affiliated_companies", label: "All affiliated companies", description: "Full list of companies on the case." },
+  { value: "individuals", label: "Individuals on case", description: "Names, roles and types of individuals." },
+  { value: "case_risk", label: "Case-level risk assessments", description: "Existing risk scores and notes on the case." },
+  { value: "entity_risk", label: "Entity-level risk assessments", description: "Risk assessments for the main company / individuals." },
+  { value: "custom_properties", label: "Custom properties", description: "KYC custom fields stored on the main company." },
+  { value: "documents", label: "Documents (metadata)", description: "Filenames and types attached to entities." },
+];
 
 export default function RiskAssessmentQuestionEdit() {
   const navigate = useNavigate();
@@ -57,6 +68,7 @@ export default function RiskAssessmentQuestionEdit() {
     ai_prompt_template: "",
     question_type: "single_select",
     context_question_ids: [] as string[],
+    case_data_sources: [] as string[],
     score_aggregation: "none" as "none" | "sum" | "average" | "max",
   });
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
@@ -84,6 +96,7 @@ export default function RiskAssessmentQuestionEdit() {
             ai_prompt_template: q.ai_prompt_template || "",
             question_type: q.question_type || "single_select",
             context_question_ids: Array.isArray(q.context_question_ids) ? q.context_question_ids : [],
+            case_data_sources: Array.isArray((q as any).case_data_sources) ? (q as any).case_data_sources : [],
             score_aggregation: ((q as any).score_aggregation as any) || "none",
           });
           const { data: opts } = await supabase
@@ -448,6 +461,41 @@ export default function RiskAssessmentQuestionEdit() {
                     })}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Case Data to Include</CardTitle>
+                <CardDescription>
+                  Select which MEO case information should be fetched and added to the AI prompt for this question.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {CASE_DATA_SOURCES.map((src) => {
+                    const isChecked = formData.case_data_sources.includes(src.value);
+                    return (
+                      <label key={src.value} className="flex items-start gap-3 cursor-pointer rounded-md border p-2 hover:bg-muted/40">
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            setFormData((p) => ({
+                              ...p,
+                              case_data_sources: checked
+                                ? [...p.case_data_sources, src.value]
+                                : p.case_data_sources.filter((v) => v !== src.value),
+                            }));
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{src.label}</p>
+                          <p className="text-xs text-muted-foreground">{src.description}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
 
