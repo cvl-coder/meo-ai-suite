@@ -13,6 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Save, X, ArrowLeft, Pencil } from "lucide-react";
+import { CaseDataFieldPicker, type CaseDataFields } from "@/components/risk/CaseDataFieldPicker";
+
+const EMPTY_FIELDS: CaseDataFields = { main_company_entity_id: null, fields: {} };
 
 type AnswerOption = {
   id?: string;
