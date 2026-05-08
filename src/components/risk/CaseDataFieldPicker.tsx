@@ -276,25 +276,26 @@ export function CaseDataFieldPicker({ value, onChange }: Props) {
       )}
 
       {/* Pick the main company entity */}
-      {affiliatedList.length > 0 && (
+      {companyCandidates.length > 0 && (
         <div className="rounded-md border p-3 space-y-2">
           <Label className="text-xs font-semibold">Which entity is the main company?</Label>
           <div className="space-y-1">
-            {affiliatedList.map((a) => (
+            {companyCandidates.map((a) => (
               <label key={a.id} className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
                   type="radio"
                   name="main-company-entity"
-                  checked={value.main_company_entity_id === a.id}
+                  checked={(value.main_company_entity_id || mainCompanyCandidate?.id) === a.id}
                   onChange={() => onChange({ ...value, main_company_entity_id: a.id })}
                 />
                 <span className="truncate">{a.name}</span>
+                {a.source === "main" && <Badge variant="secondary" className="text-[10px]">case mainCompany</Badge>}
                 <span className="text-xs text-muted-foreground">({a.id})</span>
               </label>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            At runtime we look this entity up on the case by id. If it's not present, the prompt explicitly says so — no fallback.
+            At runtime we look this entity up on the case by id. If it's not present, the prompt explicitly says so — no affiliated-company fallback.
           </p>
         </div>
       )}
