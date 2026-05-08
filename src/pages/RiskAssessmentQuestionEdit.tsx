@@ -13,6 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Plus, Save, X, ArrowLeft, Pencil } from "lucide-react";
+import { CaseDataFieldPicker, type CaseDataFields } from "@/components/risk/CaseDataFieldPicker";
+
+const EMPTY_FIELDS: CaseDataFields = { main_company_entity_id: null, fields: {} };
 
 type AnswerOption = {
   id?: string;
@@ -69,6 +72,7 @@ export default function RiskAssessmentQuestionEdit() {
     question_type: "single_select",
     context_question_ids: [] as string[],
     case_data_sources: [] as string[],
+    case_data_fields: EMPTY_FIELDS as CaseDataFields,
     score_aggregation: "none" as "none" | "sum" | "average" | "max",
   });
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
@@ -97,6 +101,9 @@ export default function RiskAssessmentQuestionEdit() {
             question_type: q.question_type || "single_select",
             context_question_ids: Array.isArray(q.context_question_ids) ? q.context_question_ids : [],
             case_data_sources: Array.isArray((q as any).case_data_sources) ? (q as any).case_data_sources : [],
+            case_data_fields: ((q as any).case_data_fields && typeof (q as any).case_data_fields === "object")
+              ? { main_company_entity_id: (q as any).case_data_fields.main_company_entity_id ?? null, fields: (q as any).case_data_fields.fields ?? {} }
+              : EMPTY_FIELDS,
             score_aggregation: ((q as any).score_aggregation as any) || "none",
           });
           const { data: opts } = await supabase
@@ -468,34 +475,14 @@ export default function RiskAssessmentQuestionEdit() {
               <CardHeader>
                 <CardTitle className="text-base">Case Data to Include</CardTitle>
                 <CardDescription>
-                  Select which MEO case information should be fetched and added to the AI prompt for this question.
+                  Pick a sample case, then tick exactly which fields should be injected into this question's AI prompt. The preview shows what will be sent.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {CASE_DATA_SOURCES.map((src) => {
-                    const isChecked = formData.case_data_sources.includes(src.value);
-                    return (
-                      <label key={src.value} className="flex items-start gap-3 cursor-pointer rounded-md border p-2 hover:bg-muted/40">
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            setFormData((p) => ({
-                              ...p,
-                              case_data_sources: checked
-                                ? [...p.case_data_sources, src.value]
-                                : p.case_data_sources.filter((v) => v !== src.value),
-                            }));
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{src.label}</p>
-                          <p className="text-xs text-muted-foreground">{src.description}</p>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
+                <CaseDataFieldPicker
+                  value={formData.case_data_fields}
+                  onChange={(next) => setFormData((p) => ({ ...p, case_data_fields: next }))}
+                />
               </CardContent>
             </Card>
 
