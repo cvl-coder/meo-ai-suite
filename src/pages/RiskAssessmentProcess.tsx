@@ -549,6 +549,12 @@ export default function RiskAssessmentProcess() {
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const authSession = (await supabase.auth.getSession()).data.session;
 
+      const endpointUrl2 = settings?.ai_endpoint_url || "http://core.meo.io/v1";
+      const modelName2 = settings?.ai_model || "llama3.1:latest";
+      setLastPromptByQuestion((prev) => ({
+        ...prev,
+        [question.id]: { system: systemMessage, user: userPrompt, model: modelName2, endpoint: endpointUrl2, ts: new Date().toISOString() },
+      }));
       const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
         method: "POST",
         headers: {
