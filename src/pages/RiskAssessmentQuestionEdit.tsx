@@ -475,34 +475,14 @@ export default function RiskAssessmentQuestionEdit() {
               <CardHeader>
                 <CardTitle className="text-base">Case Data to Include</CardTitle>
                 <CardDescription>
-                  Select which MEO case information should be fetched and added to the AI prompt for this question.
+                  Pick a sample case, then tick exactly which fields should be injected into this question's AI prompt. The preview shows what will be sent.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {CASE_DATA_SOURCES.map((src) => {
-                    const isChecked = formData.case_data_sources.includes(src.value);
-                    return (
-                      <label key={src.value} className="flex items-start gap-3 cursor-pointer rounded-md border p-2 hover:bg-muted/40">
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            setFormData((p) => ({
-                              ...p,
-                              case_data_sources: checked
-                                ? [...p.case_data_sources, src.value]
-                                : p.case_data_sources.filter((v) => v !== src.value),
-                            }));
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{src.label}</p>
-                          <p className="text-xs text-muted-foreground">{src.description}</p>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
+                <CaseDataFieldPicker
+                  value={formData.case_data_fields}
+                  onChange={(next) => setFormData((p) => ({ ...p, case_data_fields: next }))}
+                />
               </CardContent>
             </Card>
 
