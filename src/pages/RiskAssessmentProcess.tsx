@@ -263,6 +263,11 @@ export default function RiskAssessmentProcess() {
       if (typeof v === "string") return v;
       return JSON.stringify(v);
     };
+    const getEntityId = (item: any): string => {
+      const e = item?.entity || item;
+      return String(e?.id || e?.entityId || item?.entityId || item?.id || item?.caseEntityId || "");
+    };
+    const getMainCompanyItem = (caseObj: any) => caseObj?.mainCompany || caseObj?.subject || caseObj?.mainEntity || caseObj?.caseSubject || caseObj?.entity || null;
 
     const parts: string[] = [];
 
@@ -274,17 +279,15 @@ export default function RiskAssessmentProcess() {
     if (useNew && cdf) {
       const fields = cdf.fields || {};
       const affiliated = Array.isArray(cd?.affiliatedCompanies) ? cd.affiliatedCompanies : [];
+      const explicitMain = getMainCompanyItem(cd);
 
-      // Resolve main company STRICTLY from configured entity id — no fallback to [0]
-      let mainEntity: any = null;
-      if (cdf.main_company_entity_id) {
-        const match = affiliated.find((item: any) => {
-          const e = item?.entity || item;
-          const id = e?.entityId || item?.entityId || e?.id || item?.id;
-          return String(id) === String(cdf.main_company_entity_id);
-        });
-        mainEntity = match ? (match.entity || match) : null;
-      }
+      // Resolve main company from explicit case mainCompany, or configured id. Never fall back to affiliatedCompanies[0].
+      const candidates = [explicitMain, ...affiliated].filter(Boolean);
+      const mainMatch = cdf.main_company_entity_id
+        ? candidates.find((item: any) => getEntityId(item) === String(cdf.main_company_entity_id) || String(item?.caseEntityId || "") === String(cdf.main_company_entity_id))
+        : explicitMain;
+      const mainEntity = mainMatch ? (mainMatch.entity || mainMatch) : null;
+      const mainEntityId = mainMatch ? getEntityId(mainMatch) : cdf.main_company_entity_id;
 
       const renderSection = (title: string, obj: any, paths: string[] | undefined) => {
         if (!paths || paths.length === 0) return;
@@ -320,7 +323,7 @@ export default function RiskAssessmentProcess() {
         renderSection("Case-level risk assessments", Array.isArray(data) ? data[0] : data, fields.case_risk);
       }
       if (fields.entity_risk?.length && mainEntity) {
-        const eid = cdf.main_company_entity_id;
+        const eid = mainEntityId;
         const r = await invoke("getEntityRiskAssessments", { entityId: eid, customerId, personToken: meoToken, page: 1, limit: 50 });
         const data = r?.data || r;
         renderSection("Entity-level risk assessments", Array.isArray(data) ? data[0] : data, fields.entity_risk);
@@ -328,12 +331,12 @@ export default function RiskAssessmentProcess() {
         parts.push(`### Entity-level risk assessments\n(no main company configured)`);
       }
       if (fields.custom_properties?.length && mainEntity) {
-        const r = await invoke("getEntityCustomProperties", { entityId: cdf.main_company_entity_id, customerId, personToken: meoToken, page: 1, limit: 100 });
+        const r = await invoke("getEntityCustomProperties", { entityId: mainEntityId, customerId, personToken: meoToken, page: 1, limit: 100 });
         const data = r?.data || r;
         renderSection("Custom properties (main company)", Array.isArray(data) ? data[0] : data, fields.custom_properties);
       }
       if (fields.documents?.length && mainEntity) {
-        const r = await invoke("getEntityUserdata", { entityId: cdf.main_company_entity_id, customerId, personToken: meoToken });
+        const r = await invoke("getEntityUserdata", { entityId: mainEntityId, customerId, personToken: meoToken });
         const data = r?.data || r;
         renderSection("Documents (main company)", Array.isArray(data) ? data[0] : data, fields.documents);
       }
