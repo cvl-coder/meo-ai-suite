@@ -234,8 +234,12 @@ export default function RiskAssessmentProcess() {
     [settings]
   );
 
-  const fetchCaseDataBlock = useCallback(async (sources: string[]): Promise<string> => {
-    if (!sources || sources.length === 0) return "";
+  const fetchCaseDataBlock = useCallback(async (question: Question): Promise<string> => {
+    const cdf = question.case_data_fields;
+    const legacy = Array.isArray(question.case_data_sources) ? question.case_data_sources : [];
+    const useNew = !!(cdf && cdf.fields && Object.values(cdf.fields).some((v) => Array.isArray(v) && v.length > 0));
+    if (!useNew && legacy.length === 0) return "";
+
     const meoToken = getMeoToken();
     const customerId = session?.customer_id || localStorage.getItem("selectedCustomerId") || "";
     const caseId = session?.case_id || localStorage.getItem(`meo_case_id:${customerId}`) || "";
@@ -250,77 +254,115 @@ export default function RiskAssessmentProcess() {
       return data;
     };
 
-    const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + "\n...[truncated]" : s);
+    const getByPath = (obj: any, path: string): any => {
+      if (!path) return obj;
+      return path.split(".").reduce((acc, k) => (acc == null ? acc : acc[k]), obj);
+    };
+    const fmtVal = (v: unknown): string => {
+      if (v === null || v === undefined) return "(missing)";
+      if (typeof v === "string") return v;
+      return JSON.stringify(v);
+    };
+
     const parts: string[] = [];
 
-    let caseData: any = null;
-    const needsCase = sources.some((s) => ["main_company", "affiliated_companies", "individuals"].includes(s));
-    if (needsCase) {
-      caseData = await invoke("getCase", { caseId, customerId, personToken: meoToken });
-    }
+    // Always need the case for most sections
+    const caseData = await invoke("getCase", { caseId, customerId, personToken: meoToken });
     const cd = caseData?.data || caseData;
 
-    if (sources.includes("main_company") && cd) {
-      const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
-      if (main) {
-        // Pull country from any plausible field name MEO might use
-        const country =
-          main.country ?? main.countryCode ?? main.country_code ?? main.nationality ??
-          main.jurisdiction ?? main.registrationCountry ?? main.incorporationCountry ??
-          main.address?.country ?? main.address?.countryCode ?? null;
-        const name = main.name ?? main.companyName ?? main.legalName ?? main.displayName ?? null;
-        const regId = main.relationsIdentifier ?? main.registrationId ?? main.registrationNumber ?? main.cvr ?? main.orgNumber ?? null;
-        const summary = {
-          id: main.id, name, registrationId: regId, country,
-          type: main.type, role: main.role, status: main.status,
-        };
-        parts.push(
-          `### Main company (normalized)\n${JSON.stringify(summary, null, 2)}\n` +
-          `### Main company (raw, all fields from MEO)\n${truncate(JSON.stringify(main, null, 2), 3000)}`
-        );
-      } else {
-        parts.push(`### Main company\n(no affiliated company found on case)`);
+    // Field-level (new) path
+    if (useNew && cdf) {
+      const fields = cdf.fields || {};
+      const affiliated = Array.isArray(cd?.affiliatedCompanies) ? cd.affiliatedCompanies : [];
+
+      // Resolve main company STRICTLY from configured entity id — no fallback to [0]
+      let mainEntity: any = null;
+      if (cdf.main_company_entity_id) {
+        const match = affiliated.find((item: any) => {
+          const e = item?.entity || item;
+          const id = e?.entityId || item?.entityId || e?.id || item?.id;
+          return String(id) === String(cdf.main_company_entity_id);
+        });
+        mainEntity = match ? (match.entity || match) : null;
       }
+
+      const renderSection = (title: string, obj: any, paths: string[] | undefined) => {
+        if (!paths || paths.length === 0) return;
+        if (!obj) {
+          parts.push(`### ${title}\n(configured source not present on this case)`);
+          return;
+        }
+        const lines = paths.map((p) => `${p}: ${fmtVal(getByPath(obj, p))}`);
+        parts.push(`### ${title}\n${lines.join("\n")}`);
+      };
+
+      const renderListSection = (title: string, list: any[], paths: string[] | undefined, unwrap = false) => {
+        if (!paths || paths.length === 0) return;
+        if (!list || list.length === 0) {
+          parts.push(`### ${title}\n(none)`);
+          return;
+        }
+        const items = list.slice(0, 25).map((item, idx) => {
+          const o = unwrap ? (item?.entity || item) : item;
+          const lines = paths.map((p) => `  ${p}: ${fmtVal(getByPath(o, p))}`);
+          return `- item ${idx + 1}\n${lines.join("\n")}`;
+        });
+        parts.push(`### ${title} (${list.length})\n${items.join("\n")}`);
+      };
+
+      renderSection("Main company", mainEntity, fields.main_company);
+      renderListSection("Affiliated companies", affiliated, fields.affiliated_companies, true);
+      renderListSection("Individuals on case", Array.isArray(cd?.individuals) ? cd.individuals : [], fields.individuals);
+
+      if (fields.case_risk?.length) {
+        const r = await invoke("getRiskAssessments", { caseId, customerId, personToken: meoToken, page: 1, limit: 50 });
+        const data = r?.data || r;
+        renderSection("Case-level risk assessments", Array.isArray(data) ? data[0] : data, fields.case_risk);
+      }
+      if (fields.entity_risk?.length && mainEntity) {
+        const eid = cdf.main_company_entity_id;
+        const r = await invoke("getEntityRiskAssessments", { entityId: eid, customerId, personToken: meoToken, page: 1, limit: 50 });
+        const data = r?.data || r;
+        renderSection("Entity-level risk assessments", Array.isArray(data) ? data[0] : data, fields.entity_risk);
+      } else if (fields.entity_risk?.length) {
+        parts.push(`### Entity-level risk assessments\n(no main company configured)`);
+      }
+      if (fields.custom_properties?.length && mainEntity) {
+        const r = await invoke("getEntityCustomProperties", { entityId: cdf.main_company_entity_id, customerId, personToken: meoToken, page: 1, limit: 100 });
+        const data = r?.data || r;
+        renderSection("Custom properties (main company)", Array.isArray(data) ? data[0] : data, fields.custom_properties);
+      }
+      if (fields.documents?.length && mainEntity) {
+        const r = await invoke("getEntityUserdata", { entityId: cdf.main_company_entity_id, customerId, personToken: meoToken });
+        const data = r?.data || r;
+        renderSection("Documents (main company)", Array.isArray(data) ? data[0] : data, fields.documents);
+      }
+
+      if (parts.length === 0) return "";
+      return `\n\n--- Case Context (from MEO) ---\n${parts.join("\n\n")}\n--- End of case context ---\n`;
     }
-    if (sources.includes("affiliated_companies") && cd) {
+
+    // Legacy path (kept so existing questions still work). Does NOT fall back to affiliatedCompanies[0] for main_company.
+    const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + "\n...[truncated]" : s);
+    if (legacy.includes("main_company")) {
+      parts.push(`### Main company\n(no main company configured for this question — open the question editor and pick one)`);
+    }
+    if (legacy.includes("affiliated_companies") && cd) {
       const list = Array.isArray(cd?.affiliatedCompanies) ? cd.affiliatedCompanies : [];
-      parts.push(`### Affiliated companies (${list.length})\n${truncate(JSON.stringify(list.map((c: any) => ({
-        id: c.id, name: c.name, registrationId: c.relationsIdentifier, country: c.country, role: c.role,
-      })), null, 2))}`);
+      parts.push(`### Affiliated companies (${list.length})\n${truncate(JSON.stringify(list.map((c: any) => {
+        const e = c?.entity || c;
+        return { id: e.entityId || e.id, name: e.name, country: e.address?.countryCode ?? e.nationality };
+      }), null, 2))}`);
     }
-    if (sources.includes("individuals") && cd) {
+    if (legacy.includes("individuals") && cd) {
       const list = Array.isArray(cd?.individuals) ? cd.individuals : [];
       parts.push(`### Individuals on case (${list.length})\n${truncate(JSON.stringify(list.map((i: any) => ({
         id: i.id, name: i.name, role: i.role, type: i.type,
       })), null, 2))}`);
     }
-    if (sources.includes("case_risk")) {
+    if (legacy.includes("case_risk")) {
       const r = await invoke("getRiskAssessments", { caseId, customerId, personToken: meoToken, page: 1, limit: 50 });
       if (r) parts.push(`### Case-level risk assessments\n${truncate(JSON.stringify(r?.data || r, null, 2))}`);
-    }
-    if (sources.includes("entity_risk") && cd) {
-      const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
-      if (main?.id) {
-        const r = await invoke("getEntityRiskAssessments", { entityId: main.id, customerId, personToken: meoToken, page: 1, limit: 50 });
-        if (r) parts.push(`### Risk assessments for main company\n${truncate(JSON.stringify(r?.data || r, null, 2))}`);
-      }
-    }
-    if (sources.includes("custom_properties") && cd) {
-      const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
-      if (main?.id) {
-        const r = await invoke("getEntityCustomProperties", { entityId: main.id, customerId, personToken: meoToken, page: 1, limit: 100 });
-        if (r) parts.push(`### Custom properties (main company)\n${truncate(JSON.stringify(r?.data || r, null, 2))}`);
-      }
-    }
-    if (sources.includes("documents") && cd) {
-      const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
-      if (main?.id) {
-        const r = await invoke("getEntityUserdata", { entityId: main.id, customerId, personToken: meoToken });
-        const docs = Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []);
-        parts.push(`### Documents on main company (${docs.length})\n${truncate(JSON.stringify(docs.slice(0, 50).map((d: any) => ({
-          id: d.id, name: d.name || d.filename, format: d.format, createdAt: d.createdAt,
-        })), null, 2))}`);
-      }
     }
 
     if (parts.length === 0) return "";
