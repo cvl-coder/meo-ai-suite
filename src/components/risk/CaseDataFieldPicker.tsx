@@ -158,7 +158,7 @@ export function CaseDataFieldPicker({ value, onChange }: Props) {
     setLoadingCase(false);
   }, [caseId, customerId, meoToken, invoke, value.main_company_entity_id]);
 
-  useEffect(() => { void loadCaseData(); /* eslint-disable-next-line */ }, [caseId, customerId, value.main_company_entity_id]);
+  useEffect(() => { void loadCaseData(); }, [loadCaseData]);
 
   const mainCompanyCandidate = useMemo(() => toCompanyCandidate(getMainCompanyItem(caseObj), "main"), [caseObj]);
 
