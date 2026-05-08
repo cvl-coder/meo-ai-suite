@@ -1,64 +1,43 @@
-# Per-question case data context
+# Per-question "View last prompt" debug panel
 
-Currently, when an AI note is generated for a question, the prompt only contains:
-- The question text + answer
-- Other questions' answers (via `context_question_ids`)
-- Question-specific instructions (`ai_prompt_template`)
-
-The MEO case data (main company info, risk assessments, documents, custom properties, etc.) is **not** attached at the question level. There is a global `data_sources` setting (case_risk / entity_risk) but it is only used by the conclusion-level summary, not per-question AI notes.
-
-This plan adds a per-question selector in the admin UI so an admin can pick which MEO case data points should be fetched and injected into that question's AI prompt.
+Goal: see exactly what was sent to the AI for each question — including whether `main.country` (and any other case data) actually made it into the JSON — without touching the edge function or the database.
 
 ## What gets added
 
-In **Risk Assessment → Admin → Edit Question**, add a new section **"Case data to include"** with checkboxes for each available data source:
+On `/risk-assessment/process`, next to each question's existing **Generate AI Note** button, add a small **View prompt** icon button (eye icon). It is enabled only after that question has generated at least one AI note in the current session.
 
-- **Main company** — name, org no., country, status, role on case (from `getCase` → `affiliatedCompanies[0]`)
-- **All affiliated companies** — full list with same fields
-- **Individuals on case** — names, roles, types
-- **Case-level risk assessments** — existing scores/levels/notes for the case
-- **Entity-level risk assessments** — for selected entities
-- **Custom properties** — KYC fields stored on the main company
-- **Documents list** — filenames + types attached to entities (no file content)
-- **Compliance checks** — PEP / sanctions / adverse media check results
+Clicking it opens a dialog showing the **exact** payload that was sent on the most recent AI call for that question:
 
-Selections are saved per-question. When that question runs its AI note, the edge flow fetches the chosen sources, formats them into a `## Case Context` block, and prepends it to the prompt — same pattern already used for `context_question_ids`.
+- Model + endpoint + timestamp
+- `system` message (full text)
+- `user` message (full text, including the `## Case Context` block with the JSON for main company, risk assessments, etc.)
+- A "Copy" button for each block
+- An approximate length (chars) so we can see if we're close to context limits
 
-## User flow
+Same button is added to the conclusion-summary section (so we can also inspect the follow-up summary call).
 
-```text
-Admin → Edit Question
- ┌────────────────────────────────────┐
- │ Question text                      │
- │ Answer options                     │
- │ AI prompt template                 │
- │ Context from other questions  [✓]  │
- │ ── NEW ──                          │
- │ Case data to include               │
- │   [✓] Main company                 │
- │   [ ] Affiliated companies         │
- │   [✓] Risk assessments (case)      │
- │   [ ] Documents                    │
- │   ...                              │
- └────────────────────────────────────┘
-```
+## How it works
 
-At runtime, `RiskAssessmentProcess` calls `meo-api-test` for each selected source, builds a context block, and sends it in the AI request alongside the existing question/answer payload.
-
-## Technical notes
-
-1. **Schema** — add `case_data_sources jsonb DEFAULT '[]'::jsonb` to `risk_assessment_questions`. Values are short keys: `main_company`, `affiliated_companies`, `individuals`, `case_risk`, `entity_risk`, `custom_properties`, `documents`, `checks`.
-2. **Admin UI** — `RiskAssessmentQuestionEdit.tsx`: new checkbox group bound to `formData.case_data_sources`; persisted via existing upsert.
-3. **Runtime** — `RiskAssessmentProcess.tsx` (`generateAiNote` + `runFollowUpSummary`):
-   - Read `question.case_data_sources`
-   - For each key, call the matching `meo-api-test` action (`getCase`, `getRiskAssessments`, `getEntityRiskAssessments`, `getEntityCustomProperties`, `getEntityUserdata`, `getCheckData`)
-   - Cache results per session to avoid refetching across questions
-   - Format into a Markdown `## Case Context` block (compact JSON or bullets), prepend to prompt
-4. **Token safety** — truncate large payloads (e.g. document lists > 50 items, risk assessment notes > 2 KB each) before injection.
-5. **Preview Prompt** in Admin — extend the existing preview to show the case-data block using a sample case, so admins can verify size before saving.
+- New in-memory state in `RiskAssessmentProcess.tsx`:
+  ```ts
+  const [lastPromptByQuestion, setLastPromptByQuestion] =
+    useState<Record<string, { system: string; user: string; model: string; endpoint: string; ts: string }>>({});
+  const [lastSummaryPrompt, setLastSummaryPrompt] = useState<…|null>(null);
+  ```
+- In `generateNoteForQuestion`, right before the `fetch(...)` call, capture `{ system, user, model, endpoint, ts: new Date().toISOString() }` into `lastPromptByQuestion[question.id]`.
+- Same capture inside `runFollowUpSummary` for the summary call.
+- New `<PromptDebugDialog />` local component using `Dialog` from `@/components/ui/dialog`, with two `<pre>` blocks (scrollable, monospaced) and copy buttons.
 
 ## Out of scope
 
-- No changes to the global `data_sources` setting (still drives the final conclusion summary).
-- No new MEO endpoints — only existing `meo-api-test` actions are reused.
-- No file-content extraction from documents (only metadata/filenames).
+- No changes to the `chat` edge function (still a thin streaming relay).
+- No DB persistence — state is per-session and lost on reload. (Can be added later if we want an audit trail.)
+- No changes to which case data is fetched or how it's formatted. This change only **shows** what is already being sent, so we can confirm whether `country` is actually in the payload before deciding what to fix next.
+
+## Files touched
+
+- `src/pages/RiskAssessmentProcess.tsx` — add state, capture prompts, add View-prompt buttons + dialog.
+
+## What we'll learn from it
+
+After shipping, open a question that uses **Main company**, click **Generate AI Note**, then click **View prompt**. In the `user` block, search for `"country"`. If it's missing or empty, the fix is in `fetchCaseDataBlock` (field-name mapping / extra detail call). If it's present with a real value, the fix is in the system prompt / question template (the AI is being told to ignore it).

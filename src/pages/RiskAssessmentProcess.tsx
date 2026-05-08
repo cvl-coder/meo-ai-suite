@@ -10,8 +10,11 @@ import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken } from "@/lib/meoToken";
-import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles, Save } from "lucide-react";
+import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles, Save, Eye, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
+type DebugPrompt = { system: string; user: string; model: string; endpoint: string; ts: string };
 
 type AnswerOption = {
   id: string;
@@ -71,6 +74,9 @@ export default function RiskAssessmentProcess() {
   const [savingAnswerFor, setSavingAnswerFor] = useState<string | null>(null);
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [caseDataCache, setCaseDataCache] = useState<Record<string, any>>({});
+  const [lastPromptByQuestion, setLastPromptByQuestion] = useState<Record<string, DebugPrompt>>({});
+  const [lastSummaryPrompt, setLastSummaryPrompt] = useState<DebugPrompt | null>(null);
+  const [debugPromptOpen, setDebugPromptOpen] = useState<DebugPrompt | null>(null);
 
   // Load questions, answer options, session, and settings
   useEffect(() => {
@@ -395,6 +401,12 @@ export default function RiskAssessmentProcess() {
       const authSession = (await supabase.auth.getSession()).data.session;
 
       const provider = "custom";
+      const endpointUrl = settings?.ai_endpoint_url || "http://core.meo.io/v1";
+      const modelName = settings?.ai_model || "llama3.1:latest";
+      setLastPromptByQuestion((prev) => ({
+        ...prev,
+        [question.id]: { system: systemMessage, user: userPrompt, model: modelName, endpoint: endpointUrl, ts: new Date().toISOString() },
+      }));
       const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
         method: "POST",
         headers: {
@@ -537,6 +549,12 @@ export default function RiskAssessmentProcess() {
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const authSession = (await supabase.auth.getSession()).data.session;
 
+      const endpointUrl2 = settings?.ai_endpoint_url || "http://core.meo.io/v1";
+      const modelName2 = settings?.ai_model || "llama3.1:latest";
+      setLastPromptByQuestion((prev) => ({
+        ...prev,
+        [question.id]: { system: systemMessage, user: userPrompt, model: modelName2, endpoint: endpointUrl2, ts: new Date().toISOString() },
+      }));
       const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
         method: "POST",
         headers: {
@@ -667,6 +685,9 @@ export default function RiskAssessmentProcess() {
       const authSession = (await supabase.auth.getSession()).data.session;
 
       const provider = "custom";
+      const endpointUrl3 = settings?.ai_endpoint_url || "http://core.meo.io/v1";
+      const modelName3 = settings?.ai_model || "llama3.1:latest";
+      setLastSummaryPrompt({ system: systemMessage, user: userMessage, model: modelName3, endpoint: endpointUrl3, ts: new Date().toISOString() });
       const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
         method: "POST",
         headers: {
@@ -916,15 +937,22 @@ export default function RiskAssessmentProcess() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">AI Summary</CardTitle>
-                <Button
-                  size="sm"
-                  onClick={generateAiSummary}
-                  disabled={generatingSummary}
-                  className="gap-2"
-                >
-                  {generatingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {generatingSummary ? "Generating..." : session?.ai_summary ? "Regenerate" : "Generate Summary"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {lastSummaryPrompt && (
+                    <Button size="sm" variant="outline" onClick={() => setDebugPromptOpen(lastSummaryPrompt)} className="gap-2">
+                      <Eye className="h-4 w-4" /> View prompt
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={generateAiSummary}
+                    disabled={generatingSummary}
+                    className="gap-2"
+                  >
+                    {generatingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {generatingSummary ? "Generating..." : session?.ai_summary ? "Regenerate" : "Generate Summary"}
+                  </Button>
+                </div>
               </div>
               <CardDescription>
                 Generates a comprehensive summary based on all your scored answers, selected options, and AI-generated notes.
@@ -954,6 +982,7 @@ export default function RiskAssessmentProcess() {
             </Button>
           </div>
         </div>
+        <PromptDebugDialog prompt={debugPromptOpen} onClose={() => setDebugPromptOpen(null)} />
       </AppLayout>
     );
   }
@@ -1156,6 +1185,16 @@ export default function RiskAssessmentProcess() {
                             <Button
                               variant="outline"
                               size="icon"
+                              className="shrink-0 self-start mt-0.5"
+                              disabled={!lastPromptByQuestion[q.id]}
+                              onClick={() => setDebugPromptOpen(lastPromptByQuestion[q.id])}
+                              title={lastPromptByQuestion[q.id] ? "View last prompt sent to AI" : "Generate an AI note first"}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
                               className={`shrink-0 self-start mt-0.5 ${savedAnswers.has(q.id) ? "text-green-600 border-green-300" : ""}`}
                               disabled={savingAnswerFor === q.id}
                               onClick={() => saveAnswer(q.id)}
@@ -1192,6 +1231,54 @@ export default function RiskAssessmentProcess() {
           </>
         )}
       </div>
+      <PromptDebugDialog prompt={debugPromptOpen} onClose={() => setDebugPromptOpen(null)} />
     </AppLayout>
+  );
+}
+
+function PromptDebugDialog({ prompt, onClose }: { prompt: DebugPrompt | null; onClose: () => void }) {
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => toast({ title: "Copied to clipboard" }),
+      () => toast({ title: "Copy failed", variant: "destructive" }),
+    );
+  };
+  return (
+    <Dialog open={!!prompt} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Last prompt sent to AI</DialogTitle>
+          <DialogDescription>
+            {prompt && (
+              <span className="text-xs">
+                {new Date(prompt.ts).toLocaleString()} · model <code>{prompt.model}</code> · endpoint <code>{prompt.endpoint}</code>
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        {prompt && (
+          <div className="space-y-4">
+            <section>
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-sm font-semibold">System message ({prompt.system.length} chars)</h4>
+                <Button size="sm" variant="ghost" onClick={() => copy(prompt.system)} className="gap-1">
+                  <Copy className="h-3 w-3" /> Copy
+                </Button>
+              </div>
+              <pre className="text-xs bg-muted p-3 rounded max-h-64 overflow-auto whitespace-pre-wrap break-words">{prompt.system}</pre>
+            </section>
+            <section>
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-sm font-semibold">User message ({prompt.user.length} chars)</h4>
+                <Button size="sm" variant="ghost" onClick={() => copy(prompt.user)} className="gap-1">
+                  <Copy className="h-3 w-3" /> Copy
+                </Button>
+              </div>
+              <pre className="text-xs bg-muted p-3 rounded max-h-[40vh] overflow-auto whitespace-pre-wrap break-words">{prompt.user}</pre>
+            </section>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
