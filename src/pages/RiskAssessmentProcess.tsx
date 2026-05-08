@@ -1177,7 +1177,13 @@ export default function RiskAssessmentProcess() {
                             <Button
                               variant="outline"
                               size="icon"
-                              className={`shrink-0 self-start mt-0.5 ${savedAnswers.has(q.id) ? "text-green-600 border-green-300" : ""}`}
+                              className="shrink-0 self-start mt-0.5"
+                              disabled={!lastPromptByQuestion[q.id]}
+                              onClick={() => setDebugPromptOpen(lastPromptByQuestion[q.id])}
+                              title={lastPromptByQuestion[q.id] ? "View last prompt sent to AI" : "Generate an AI note first"}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                               disabled={savingAnswerFor === q.id}
                               onClick={() => saveAnswer(q.id)}
                               title="Save this answer"
