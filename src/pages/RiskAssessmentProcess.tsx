@@ -937,15 +937,22 @@ export default function RiskAssessmentProcess() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">AI Summary</CardTitle>
-                <Button
-                  size="sm"
-                  onClick={generateAiSummary}
-                  disabled={generatingSummary}
-                  className="gap-2"
-                >
-                  {generatingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {generatingSummary ? "Generating..." : session?.ai_summary ? "Regenerate" : "Generate Summary"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {lastSummaryPrompt && (
+                    <Button size="sm" variant="outline" onClick={() => setDebugPromptOpen(lastSummaryPrompt)} className="gap-2">
+                      <Eye className="h-4 w-4" /> View prompt
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={generateAiSummary}
+                    disabled={generatingSummary}
+                    className="gap-2"
+                  >
+                    {generatingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {generatingSummary ? "Generating..." : session?.ai_summary ? "Regenerate" : "Generate Summary"}
+                  </Button>
+                </div>
               </div>
               <CardDescription>
                 Generates a comprehensive summary based on all your scored answers, selected options, and AI-generated notes.
