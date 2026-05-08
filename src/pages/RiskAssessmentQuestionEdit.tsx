@@ -72,6 +72,7 @@ export default function RiskAssessmentQuestionEdit() {
     question_type: "single_select",
     context_question_ids: [] as string[],
     case_data_sources: [] as string[],
+    case_data_fields: EMPTY_FIELDS as CaseDataFields,
     score_aggregation: "none" as "none" | "sum" | "average" | "max",
   });
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
