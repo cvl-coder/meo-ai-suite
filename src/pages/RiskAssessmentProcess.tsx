@@ -685,6 +685,9 @@ export default function RiskAssessmentProcess() {
       const authSession = (await supabase.auth.getSession()).data.session;
 
       const provider = "custom";
+      const endpointUrl3 = settings?.ai_endpoint_url || "http://core.meo.io/v1";
+      const modelName3 = settings?.ai_model || "llama3.1:latest";
+      setLastSummaryPrompt({ system: systemMessage, user: userMessage, model: modelName3, endpoint: endpointUrl3, ts: new Date().toISOString() });
       const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
         method: "POST",
         headers: {
