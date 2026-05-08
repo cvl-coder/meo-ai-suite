@@ -26,6 +26,11 @@ type AnswerOption = {
   followup_label?: string;
 };
 
+type CaseDataFields = {
+  main_company_entity_id?: string | null;
+  fields?: Partial<Record<"main_company" | "affiliated_companies" | "individuals" | "case_risk" | "entity_risk" | "custom_properties" | "documents", string[]>>;
+};
+
 type Question = {
   id: string;
   category: string;
@@ -37,6 +42,7 @@ type Question = {
   question_type: string;
   context_question_ids: string[];
   case_data_sources?: string[];
+  case_data_fields?: CaseDataFields | null;
   score_aggregation?: "none" | "sum" | "average" | "max";
 };
 
