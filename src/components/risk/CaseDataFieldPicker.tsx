@@ -48,6 +48,22 @@ const fmtVal = (v: unknown): string => {
   return String(v);
 };
 
+const getEntityId = (item: any): string => {
+  const e = item?.entity || item;
+  return String(e?.id || e?.entityId || item?.entityId || item?.id || item?.caseEntityId || "");
+};
+
+const getMainCompanyItem = (cd: any) => cd?.mainCompany || cd?.subject || cd?.mainEntity || cd?.caseSubject || cd?.entity || null;
+
+const toCompanyCandidate = (item: any, source: "main" | "affiliated") => {
+  if (!item) return null;
+  const e = item?.entity || item;
+  const id = getEntityId(item);
+  if (!id || !e || typeof e !== "object") return null;
+  const name = e?.name || e?.companyInformation?.name || e?.legalName || (source === "main" ? "Main company" : "(unnamed)");
+  return { id, caseEntityId: item?.caseEntityId ? String(item.caseEntityId) : "", name, entity: e, source };
+};
+
 export function CaseDataFieldPicker({ value, onChange }: Props) {
   const [meoToken] = useState(() => getMeoToken() || "");
   const [meoUserId] = useState(() => getMeoUserId() || "");
@@ -122,10 +138,14 @@ export function CaseDataFieldPicker({ value, onChange }: Props) {
     const r = await invoke("getRiskAssessments", { caseId, customerId, personToken: meoToken, page: 1, limit: 50 });
     setCaseRisk(r?.data || r);
 
-    // Resolve main entity: prefer stored selection, else first affiliated
+    // Resolve main entity: prefer stored selection, else the explicit mainCompany from the case. Never use affiliates as fallback.
+    const explicitMain = toCompanyCandidate(getMainCompanyItem(cd), "main");
     const affiliated = Array.isArray(cd?.affiliatedCompanies) ? cd.affiliatedCompanies : [];
-    const mainId = value.main_company_entity_id ||
-      (affiliated[0] && (affiliated[0].entity?.entityId || affiliated[0].entityId || affiliated[0].id)) || null;
+    const candidates = [explicitMain, ...affiliated.map((item: any) => toCompanyCandidate(item, "affiliated"))].filter(Boolean) as NonNullable<ReturnType<typeof toCompanyCandidate>>[];
+    const selected = value.main_company_entity_id
+      ? candidates.find((item) => item.id === value.main_company_entity_id || item.caseEntityId === value.main_company_entity_id)
+      : explicitMain;
+    const mainId = selected?.id || null;
 
     if (mainId) {
       const er = await invoke("getEntityRiskAssessments", { entityId: mainId, customerId, personToken: meoToken, page: 1, limit: 50 });
@@ -140,21 +160,27 @@ export function CaseDataFieldPicker({ value, onChange }: Props) {
 
   useEffect(() => { void loadCaseData(); /* eslint-disable-next-line */ }, [caseId, customerId, value.main_company_entity_id]);
 
+  const mainCompanyCandidate = useMemo(() => toCompanyCandidate(getMainCompanyItem(caseObj), "main"), [caseObj]);
+
   // Affiliated companies list (with entity unwrap)
   const affiliatedList = useMemo(() => {
     const arr = Array.isArray(caseObj?.affiliatedCompanies) ? caseObj.affiliatedCompanies : [];
-    return arr.map((item: any) => {
-      const e = item?.entity || item;
-      const id = e?.entityId || item?.entityId || e?.id || item?.id || "";
-      const name = e?.name || e?.companyInformation?.name || e?.legalName || "(unnamed)";
-      return { id: String(id), name, entity: e };
-    });
+    return arr.map((item: any) => toCompanyCandidate(item, "affiliated")).filter(Boolean) as NonNullable<ReturnType<typeof toCompanyCandidate>>[];
   }, [caseObj]);
 
+  const companyCandidates = useMemo(() => {
+    const seen = new Set<string>();
+    return [mainCompanyCandidate, ...affiliatedList].filter((item): item is NonNullable<typeof mainCompanyCandidate> => {
+      if (!item || seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [mainCompanyCandidate, affiliatedList]);
+
   const mainEntity = useMemo(() => {
-    if (!value.main_company_entity_id) return null;
-    return affiliatedList.find((a) => a.id === value.main_company_entity_id)?.entity || null;
-  }, [affiliatedList, value.main_company_entity_id]);
+    if (!value.main_company_entity_id) return mainCompanyCandidate?.entity || null;
+    return companyCandidates.find((a) => a.id === value.main_company_entity_id || a.caseEntityId === value.main_company_entity_id)?.entity || null;
+  }, [companyCandidates, mainCompanyCandidate, value.main_company_entity_id]);
 
   // Compute leaves for each section against the live data
   const sectionData = useMemo(() => {
