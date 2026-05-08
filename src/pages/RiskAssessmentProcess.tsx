@@ -257,10 +257,23 @@ export default function RiskAssessmentProcess() {
     if (sources.includes("main_company") && cd) {
       const main = (Array.isArray(cd?.affiliatedCompanies) && cd.affiliatedCompanies[0]) || null;
       if (main) {
-        parts.push(`### Main company\n${JSON.stringify({
-          id: main.id, name: main.name, registrationId: main.relationsIdentifier,
-          country: main.country, type: main.type, role: main.role, status: main.status,
-        }, null, 2)}`);
+        // Pull country from any plausible field name MEO might use
+        const country =
+          main.country ?? main.countryCode ?? main.country_code ?? main.nationality ??
+          main.jurisdiction ?? main.registrationCountry ?? main.incorporationCountry ??
+          main.address?.country ?? main.address?.countryCode ?? null;
+        const name = main.name ?? main.companyName ?? main.legalName ?? main.displayName ?? null;
+        const regId = main.relationsIdentifier ?? main.registrationId ?? main.registrationNumber ?? main.cvr ?? main.orgNumber ?? null;
+        const summary = {
+          id: main.id, name, registrationId: regId, country,
+          type: main.type, role: main.role, status: main.status,
+        };
+        parts.push(
+          `### Main company (normalized)\n${JSON.stringify(summary, null, 2)}\n` +
+          `### Main company (raw, all fields from MEO)\n${truncate(JSON.stringify(main, null, 2), 3000)}`
+        );
+      } else {
+        parts.push(`### Main company\n(no affiliated company found on case)`);
       }
     }
     if (sources.includes("affiliated_companies") && cd) {
