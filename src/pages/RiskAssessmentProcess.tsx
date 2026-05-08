@@ -454,7 +454,7 @@ export default function RiskAssessmentProcess() {
       userPrompt += factBlock;
 
       // Inject MEO case data selected for this question
-      const caseDataBlock = await fetchCaseDataBlock(Array.isArray(question.case_data_sources) ? question.case_data_sources : []);
+      const caseDataBlock = await fetchCaseDataBlock(question);
       if (caseDataBlock) userPrompt += caseDataBlock;
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -596,7 +596,7 @@ export default function RiskAssessmentProcess() {
         ? `\n\nInstructions for this summary:\n${question.ai_prompt_template.trim()}`
         : ``;
 
-      const caseDataBlock = await fetchCaseDataBlock(Array.isArray(question.case_data_sources) ? question.case_data_sources : []);
+      const caseDataBlock = await fetchCaseDataBlock(question);
 
       const userPrompt =
         `Write a summary for the risk-assessment section titled: "${question.question_text}"\n` +
