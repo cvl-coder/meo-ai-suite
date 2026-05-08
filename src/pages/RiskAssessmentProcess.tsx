@@ -1230,6 +1230,7 @@ export default function RiskAssessmentProcess() {
           </>
         )}
       </div>
+      <PromptDebugDialog prompt={debugPromptOpen} onClose={() => setDebugPromptOpen(null)} />
     </AppLayout>
   );
 }
