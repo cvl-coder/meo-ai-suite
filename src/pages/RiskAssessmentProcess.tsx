@@ -1235,3 +1235,50 @@ export default function RiskAssessmentProcess() {
     </AppLayout>
   );
 }
+
+function PromptDebugDialog({ prompt, onClose }: { prompt: DebugPrompt | null; onClose: () => void }) {
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => toast({ title: "Copied to clipboard" }),
+      () => toast({ title: "Copy failed", variant: "destructive" }),
+    );
+  };
+  return (
+    <Dialog open={!!prompt} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Last prompt sent to AI</DialogTitle>
+          <DialogDescription>
+            {prompt && (
+              <span className="text-xs">
+                {new Date(prompt.ts).toLocaleString()} · model <code>{prompt.model}</code> · endpoint <code>{prompt.endpoint}</code>
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        {prompt && (
+          <div className="space-y-4">
+            <section>
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-sm font-semibold">System message ({prompt.system.length} chars)</h4>
+                <Button size="sm" variant="ghost" onClick={() => copy(prompt.system)} className="gap-1">
+                  <Copy className="h-3 w-3" /> Copy
+                </Button>
+              </div>
+              <pre className="text-xs bg-muted p-3 rounded max-h-64 overflow-auto whitespace-pre-wrap break-words">{prompt.system}</pre>
+            </section>
+            <section>
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-sm font-semibold">User message ({prompt.user.length} chars)</h4>
+                <Button size="sm" variant="ghost" onClick={() => copy(prompt.user)} className="gap-1">
+                  <Copy className="h-3 w-3" /> Copy
+                </Button>
+              </div>
+              <pre className="text-xs bg-muted p-3 rounded max-h-[40vh] overflow-auto whitespace-pre-wrap break-words">{prompt.user}</pre>
+            </section>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
