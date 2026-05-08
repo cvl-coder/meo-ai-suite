@@ -1,43 +1,107 @@
-# Per-question "View last prompt" debug panel
+# Visual case-data picker on the question editor
 
-Goal: see exactly what was sent to the AI for each question — including whether `main.country` (and any other case data) actually made it into the JSON — without touching the edge function or the database.
+## Goal
 
-## What gets added
+On `/risk-assessment/admin/questions/:id`, instead of guessing which MEO field to send as "Main company / country / …", let the admin:
 
-On `/risk-assessment/process`, next to each question's existing **Generate AI Note** button, add a small **View prompt** icon button (eye icon). It is enabled only after that question has generated at least one AI note in the current session.
+1. **Pick a real case** (workspace + case from MEO).
+2. **See the actual data** that MEO returns for that case, grouped by the existing **Case Data to Include** categories (Main company, Affiliated companies, Individuals, Case-level risk, Entity-level risk, Custom properties, Documents).
+3. **Tick the exact fields** (not just whole categories) that should be injected into the AI prompt for this question.
+4. **Preview the resulting prompt block** that will be sent to the AI, built from those exact fields against the live case.
 
-Clicking it opens a dialog showing the **exact** payload that was sent on the most recent AI call for that question:
+This replaces the current "Main company = `affiliatedCompanies[0]`, dump everything" behaviour with an explicit, admin-controlled mapping.
 
-- Model + endpoint + timestamp
-- `system` message (full text)
-- `user` message (full text, including the `## Case Context` block with the JSON for main company, risk assessments, etc.)
-- A "Copy" button for each block
-- An approximate length (chars) so we can see if we're close to context limits
+## UX on the question edit page
 
-Same button is added to the conclusion-summary section (so we can also inspect the follow-up summary call).
+Right column, replacing today's "Case Data to Include" card:
 
-## How it works
+```text
++------------------------------------------------+
+|  Case Data to Include                          |
+|                                                |
+|  Workspace:  [ Acme Bank        v ]            |
+|  Case:       [ #1234 — Volkov…  v ]   Reload   |
+|                                                |
+|  > Main company                  [3 selected]  |
+|     [x] name           "Volkov Trading Ltd"    |
+|     [x] address.countryCode  "RU"              |
+|     [ ] companyRegistrationNumber.companyNo    |
+|     [x] companyInformation.status  "Active"    |
+|     [ ] purpose ...                            |
+|                                                |
+|  > Affiliated companies (12)     [0 selected]  |
+|  > Individuals on case (4)       [name, role]  |
+|  > Case-level risk assessments   [0 selected]  |
+|  > Entity-level risk assessments [0 selected]  |
+|  > Custom properties (8)         [2 selected]  |
+|  > Documents (metadata) (3)      [0 selected]  |
+|                                                |
+|  --- Prompt preview (live) ---                 |
+|  ### Main company                              |
+|  name: Volkov Trading Ltd                      |
+|  address.countryCode: RU                       |
+|  companyInformation.status: Active             |
+|  ### Custom properties                         |
+|  riskRating: high                              |
+|  pepFlag: true                                 |
++------------------------------------------------+
+```
 
-- New in-memory state in `RiskAssessmentProcess.tsx`:
-  ```ts
-  const [lastPromptByQuestion, setLastPromptByQuestion] =
-    useState<Record<string, { system: string; user: string; model: string; endpoint: string; ts: string }>>({});
-  const [lastSummaryPrompt, setLastSummaryPrompt] = useState<…|null>(null);
-  ```
-- In `generateNoteForQuestion`, right before the `fetch(...)` call, capture `{ system, user, model, endpoint, ts: new Date().toISOString() }` into `lastPromptByQuestion[question.id]`.
-- Same capture inside `runFollowUpSummary` for the summary call.
-- New `<PromptDebugDialog />` local component using `Dialog` from `@/components/ui/dialog`, with two `<pre>` blocks (scrollable, monospaced) and copy buttons.
+Each section is a collapsible accordion. Inside, every leaf field of the live MEO object is rendered as a checkbox row showing **dot-path** + **actual value** (truncated). This way the admin sees exactly what's there and exactly what they're choosing.
 
-## Out of scope
+A small "**Use as Main company**" radio appears next to each entity in the **Affiliated companies** list, so we can finally point the system at the right entity instead of always `[0]`.
 
-- No changes to the `chat` edge function (still a thin streaming relay).
-- No DB persistence — state is per-session and lost on reload. (Can be added later if we want an audit trail.)
-- No changes to which case data is fetched or how it's formatted. This change only **shows** what is already being sent, so we can confirm whether `country` is actually in the payload before deciding what to fix next.
+## Data flow
+
+1. Workspace + Case selectors reuse the same logic as `RiskAssessment.tsx` (localStorage keys `selectedCustomerId` / `meo_case_id:<customerId>`, `invokeMeoAction("getCases", …)`).
+2. On case selection, call `getCase`, `getRiskAssessments`, `getEntityRiskAssessments` (for the chosen main entity), and existing custom-property/document endpoints already wired in `meo-api-test`.
+3. Walk each returned object with a small `flattenLeaves(obj, prefix)` helper → `Array<{ path: string; value: primitive | short-array }>`. Skip arrays of objects (they get their own section), skip nulls/empties optionally hidden behind a "Show empty fields" toggle.
+4. Render each leaf as a checkbox; selection state lives in `formData.case_data_fields`.
+
+## Schema change
+
+Replace today's coarse `case_data_sources: string[]` with a structured map (kept alongside it for one release for backwards compatibility):
+
+```text
+case_data_fields: {
+  main_company_entity_id?: string | null,   // which affiliated company to treat as main
+  fields: {
+    main_company?:        string[],   // dot-paths inside the chosen main entity
+    affiliated_companies?: string[],  // dot-paths to keep per item
+    individuals?:         string[],
+    case_risk?:           string[],
+    entity_risk?:         string[],
+    custom_properties?:   string[],
+    documents?:           string[],
+  }
+}
+```
+
+Stored as a single `jsonb` column `case_data_fields` on `risk_assessment_questions`. `case_data_sources` stays for now (treated as "all fields in this category" if `case_data_fields` is empty) so existing questions keep working.
+
+## Runtime change in `fetchCaseDataBlock`
+
+`src/pages/RiskAssessmentProcess.tsx`:
+
+- If `question.case_data_fields` is set, build the prompt block from those exact dot-paths against the live case data — no more "normalize / guess country" logic.
+- Use `case_data_fields.main_company_entity_id` to pick the right affiliated company. **Never fall back to `affiliatedCompanies[0]`.** If the configured entity isn't on the case, emit `### Main company\n(configured main company not present on this case)`.
 
 ## Files touched
 
-- `src/pages/RiskAssessmentProcess.tsx` — add state, capture prompts, add View-prompt buttons + dialog.
+- `src/pages/RiskAssessmentQuestionEdit.tsx` — replace the Case Data card with the new visual picker; add workspace/case selectors; render leaf checkboxes; live prompt preview.
+- `src/pages/RiskAssessmentProcess.tsx` — `fetchCaseDataBlock` reads `case_data_fields` and emits only the chosen dot-paths; remove the affiliated-company fallback.
+- New small helper: `src/lib/flattenLeaves.ts` (pure util, easy to test).
+- DB migration: add `case_data_fields jsonb` column (nullable, default `null`) to `public.risk_assessment_questions`.
 
-## What we'll learn from it
+## Out of scope
 
-After shipping, open a question that uses **Main company**, click **Generate AI Note**, then click **View prompt**. In the `user` block, search for `"country"`. If it's missing or empty, the fix is in `fetchCaseDataBlock` (field-name mapping / extra detail call). If it's present with a real value, the fix is in the system prompt / question template (the AI is being told to ignore it).
+- No edit of the MEO edge function, no streaming changes, no system-prompt changes.
+- No bulk reformatting of existing questions; they keep working via the `case_data_sources` fallback until an admin opens and re-saves them.
+
+## Verification
+
+1. Open the Russia question on `/risk-assessment/admin/questions/…`.
+2. Pick a workspace and a case where the real subject is a Russian entity.
+3. In **Main company**, mark the entity as "Use as Main company", check `name` and `address.countryCode`.
+4. The live preview shows exactly two lines with real values.
+5. Go to `/risk-assessment/process`, click **Generate AI Note**, then the eye icon — the user message contains the same two lines, no raw dump, and the AI's note correctly references the country instead of saying "unknown".
