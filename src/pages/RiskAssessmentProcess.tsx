@@ -74,6 +74,9 @@ export default function RiskAssessmentProcess() {
   const [savingAnswerFor, setSavingAnswerFor] = useState<string | null>(null);
   const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set());
   const [caseDataCache, setCaseDataCache] = useState<Record<string, any>>({});
+  const [lastPromptByQuestion, setLastPromptByQuestion] = useState<Record<string, DebugPrompt>>({});
+  const [lastSummaryPrompt, setLastSummaryPrompt] = useState<DebugPrompt | null>(null);
+  const [debugPromptOpen, setDebugPromptOpen] = useState<DebugPrompt | null>(null);
 
   // Load questions, answer options, session, and settings
   useEffect(() => {
