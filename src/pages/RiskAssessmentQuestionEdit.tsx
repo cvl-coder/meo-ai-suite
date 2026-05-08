@@ -101,6 +101,9 @@ export default function RiskAssessmentQuestionEdit() {
             question_type: q.question_type || "single_select",
             context_question_ids: Array.isArray(q.context_question_ids) ? q.context_question_ids : [],
             case_data_sources: Array.isArray((q as any).case_data_sources) ? (q as any).case_data_sources : [],
+            case_data_fields: ((q as any).case_data_fields && typeof (q as any).case_data_fields === "object")
+              ? { main_company_entity_id: (q as any).case_data_fields.main_company_entity_id ?? null, fields: (q as any).case_data_fields.fields ?? {} }
+              : EMPTY_FIELDS,
             score_aggregation: ((q as any).score_aggregation as any) || "none",
           });
           const { data: opts } = await supabase
