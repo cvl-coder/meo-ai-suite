@@ -14,6 +14,7 @@ import RiskAssessment from "./pages/RiskAssessment";
 import RiskAssessmentProcess from "./pages/RiskAssessmentProcess";
 import RiskAssessmentAdmin from "./pages/RiskAssessmentAdmin";
 import RiskAssessmentQuestionEdit from "./pages/RiskAssessmentQuestionEdit";
+import RiskAssessmentAiSettings from "./pages/RiskAssessmentAiSettings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/risk-assessment/process" element={guarded(<RiskAssessmentProcess />)} />
             <Route path="/risk-assessment/process/:sessionId" element={guarded(<RiskAssessmentProcess />)} />
             <Route path="/risk-assessment/admin" element={guarded(<RiskAssessmentAdmin />)} />
+            <Route path="/risk-assessment/admin/ai-settings" element={guarded(<RiskAssessmentAiSettings />)} />
             <Route path="/risk-assessment/admin/questions/new" element={guarded(<RiskAssessmentQuestionEdit />)} />
             <Route path="/risk-assessment/admin/questions/:questionId" element={guarded(<RiskAssessmentQuestionEdit />)} />
             <Route path="/api-test" element={guarded(<ApiTest />)} />
