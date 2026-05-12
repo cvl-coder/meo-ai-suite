@@ -21,60 +21,20 @@ type Question = {
   context_question_ids: string[];
 };
 
-type SettingsData = {
-  id: string;
-  ai_prompt_template: string;
-  ai_endpoint_url: string;
-  ai_api_key: string;
-  ai_model: string;
-  output_language: string;
-};
-
 export default function RiskAssessmentAdmin() {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    const [qRes, sRes] = await Promise.all([
-      supabase.from("risk_assessment_questions").select("*").order("sort_order"),
-      supabase.from("risk_assessment_settings").select("*").limit(1).maybeSingle(),
-    ]);
+    const qRes = await supabase.from("risk_assessment_questions").select("*").order("sort_order");
     setQuestions((qRes.data as any) || []);
-    if (sRes.data) {
-      setSettings(sRes.data as any);
-    }
     setLoading(false);
   };
-
-  const saveSettings = async () => {
-    if (!settings) return;
-    setSavingSettings(true);
-    const { error } = await supabase
-      .from("risk_assessment_settings")
-      .update({
-        ai_prompt_template: settings.ai_prompt_template,
-        ai_endpoint_url: settings.ai_endpoint_url,
-        ai_api_key: settings.ai_api_key,
-        ai_model: settings.ai_model,
-        output_language: settings.output_language,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", settings.id);
-    setSavingSettings(false);
-    if (error) {
-      toast({ title: "Error saving settings", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Settings saved" });
-    }
-  };
-
   const moveQuestion = async (index: number, direction: "up" | "down") => {
     const neighborIndex = direction === "up" ? index - 1 : index + 1;
     if (neighborIndex < 0 || neighborIndex >= questions.length) return;
