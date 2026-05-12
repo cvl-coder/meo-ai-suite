@@ -116,13 +116,6 @@ export default function RiskAssessmentAdmin() {
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, enabled } : q)));
   };
 
-  const toggleDataSource = (source: string) => {
-    if (!settings) return;
-    const current = settings.data_sources;
-    const updated = current.includes(source) ? current.filter((s) => s !== source) : [...current, source];
-    setSettings({ ...settings, data_sources: updated });
-  };
-
   if (loading) {
     return (
       <AppLayout>
