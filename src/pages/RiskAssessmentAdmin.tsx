@@ -137,7 +137,7 @@ export default function RiskAssessmentAdmin() {
             <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
               Risk Assessment Admin
             </h1>
-            <p className="text-muted-foreground">Configure questions, AI prompts, and data sources.</p>
+            <p className="text-muted-foreground">Configure questions and AI prompts.</p>
           </div>
         </div>
 
