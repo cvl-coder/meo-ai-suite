@@ -1,0 +1,1 @@
+ALTER TABLE public.risk_assessment_questions ADD COLUMN IF NOT EXISTS ai_model text NOT NULL DEFAULT '';
