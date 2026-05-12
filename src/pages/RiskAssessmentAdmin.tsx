@@ -69,7 +69,6 @@ export default function RiskAssessmentAdmin() {
         ai_api_key: settings.ai_api_key,
         ai_model: settings.ai_model,
         output_language: settings.output_language,
-        data_sources: settings.data_sources as any,
         updated_at: new Date().toISOString(),
       })
       .eq("id", settings.id);
