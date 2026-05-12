@@ -53,8 +53,7 @@ export default function RiskAssessmentAdmin() {
     ]);
     setQuestions((qRes.data as any) || []);
     if (sRes.data) {
-      const s = sRes.data as any;
-      setSettings({ ...s, data_sources: Array.isArray(s.data_sources) ? s.data_sources : ["case_risk", "entity_risk"] });
+      setSettings(sRes.data as any);
     }
     setLoading(false);
   };
