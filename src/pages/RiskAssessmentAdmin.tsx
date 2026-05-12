@@ -15,20 +15,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Save, Eye, AlertTriangle } from "lucide-react";
 
-type AnswerOption = {
-  id?: string;
-  question_id?: string;
-  label: string;
-  score: number;
-  sort_order: number;
-};
-
 type Question = {
   id: string;
   category: string;
   question_text: string;
   description: string;
-  max_score: number;
   sort_order: number;
   enabled: boolean;
   ai_prompt_template: string;
@@ -38,8 +29,6 @@ type Question = {
 
 type SettingsData = {
   id: string;
-  low_threshold: number;
-  medium_threshold: number;
   ai_prompt_template: string;
   ai_endpoint_url: string;
   ai_api_key: string;
@@ -85,8 +74,6 @@ export default function RiskAssessmentAdmin() {
     const { error } = await supabase
       .from("risk_assessment_settings")
       .update({
-        low_threshold: settings.low_threshold,
-        medium_threshold: settings.medium_threshold,
         ai_prompt_template: settings.ai_prompt_template,
         ai_endpoint_url: settings.ai_endpoint_url,
         ai_api_key: settings.ai_api_key,
@@ -104,16 +91,12 @@ export default function RiskAssessmentAdmin() {
     }
   };
 
-
-
-
   const moveQuestion = async (index: number, direction: "up" | "down") => {
     const neighborIndex = direction === "up" ? index - 1 : index + 1;
     if (neighborIndex < 0 || neighborIndex >= questions.length) return;
     const current = questions[index];
     const neighbor = questions[neighborIndex];
 
-    // Optimistically reorder local list
     const reordered = [...questions];
     reordered[index] = neighbor;
     reordered[neighborIndex] = current;
@@ -128,9 +111,6 @@ export default function RiskAssessmentAdmin() {
       loadData();
     }
   };
-
-
-
 
   const deleteQuestion = async (id: string) => {
     const { error } = await supabase.from("risk_assessment_questions").delete().eq("id", id);
@@ -175,7 +155,7 @@ export default function RiskAssessmentAdmin() {
             <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
               Risk Assessment Admin
             </h1>
-            <p className="text-muted-foreground">Configure questions, scoring thresholds, AI prompts, and data sources.</p>
+            <p className="text-muted-foreground">Configure questions, AI prompts, and data sources.</p>
           </div>
         </div>
 
@@ -228,11 +208,10 @@ export default function RiskAssessmentAdmin() {
                           {q.question_text}
                         </p>
                         <div className="flex gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
+                          <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
                           <Badge variant="secondary" className="text-xs">
                             {q.question_type === "summary" ? "Summary" : q.question_type === "multi_select" ? "Multi" : "Single"}
                           </Badge>
-                          <Badge variant="secondary" className="text-xs">Max: {q.max_score}</Badge>
                         </div>
                       </div>
                       <Switch checked={q.enabled} onCheckedChange={(v) => toggleQuestion(q.id, v)} />
@@ -251,39 +230,6 @@ export default function RiskAssessmentAdmin() {
 
           {/* Right: Settings */}
           <div className="space-y-6">
-            {/* Thresholds */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Risk Thresholds</CardTitle>
-                <CardDescription>Define score percentage thresholds for risk levels.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Low → Medium (%)</Label>
-                    <Input
-                      type="number"
-                      value={settings?.low_threshold ?? 30}
-                      onChange={(e) => settings && setSettings({ ...settings, low_threshold: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Medium → High (%)</Label>
-                    <Input
-                      type="number"
-                      value={settings?.medium_threshold ?? 60}
-                      onChange={(e) => settings && setSettings({ ...settings, medium_threshold: Number(e.target.value) })}
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="outline" className="text-xs text-green-600">0 – {settings?.low_threshold ?? 30}% Low</Badge>
-                  <Badge variant="outline" className="text-xs text-yellow-600">{settings?.low_threshold ?? 30} – {settings?.medium_threshold ?? 60}% Medium</Badge>
-                  <Badge variant="outline" className="text-xs text-red-600">{settings?.medium_threshold ?? 60} – 100% High</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Data Sources */}
             <Card>
               <CardHeader>
@@ -307,7 +253,7 @@ export default function RiskAssessmentAdmin() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">AI Configuration</CardTitle>
-                <CardDescription>Configure the AI model used for generating risk summaries.</CardDescription>
+                <CardDescription>Configure the AI model used for generating risk notes.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -406,7 +352,7 @@ ${cleaned}
 
 Rules:
 - Write exactly 2-4 sentences of professional risk analysis.
-- Do NOT repeat the question, score, or selected answer back.
+- Do NOT repeat the question or selected answer back.
 - Base your analysis strictly on the provided factual context.
 - Focus on the risk implications of the selected answer.`;
 })()}
@@ -420,7 +366,6 @@ Rules:
 Question: [question text]
 Background: [internal support text]
 Selected Answer: [selected answer]
-Current Score: [score] / [max_score]
 
 **IMPORTANT — You MUST follow these additional instructions:**
 [question-specific AI instructions if any]
@@ -431,7 +376,6 @@ Provide only your professional risk analysis.
 Question: [question text]
 Background: [internal support text]
 Selected Answer: [selected answer]
-Score: [score] / [max_score]
 Notes: [existing notes]`}
                         </pre>
                       </div>
@@ -448,7 +392,6 @@ Notes: [existing notes]`}
           </div>
         </div>
       </div>
-
     </AppLayout>
   );
 }
