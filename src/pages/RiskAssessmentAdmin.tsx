@@ -141,218 +141,75 @@ export default function RiskAssessmentAdmin() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-          {/* Left: Questions */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Assessment Questions</h2>
-              <Button onClick={() => navigate("/risk-assessment/admin/questions/new")} size="sm" className="gap-2">
-                <Plus className="h-4 w-4" /> Add Question
-              </Button>
-            </div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => navigate("/risk-assessment/admin/ai-settings")} variant="outline" className="gap-2">
+            <Cpu className="h-4 w-4" /> AI Settings
+          </Button>
+          <Button onClick={() => navigate("/risk-assessment/admin/questions/new")} className="gap-2">
+            <Plus className="h-4 w-4" /> Add Question
+          </Button>
+        </div>
 
-            {questions.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  No questions yet. Add your first question to get started.
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-2">
-                {questions.map((q, idx) => (
-                  <Card key={q.id} className={`transition-opacity ${!q.enabled ? "opacity-50" : ""}`}>
-                    <CardContent className="flex items-center gap-3 py-3">
-                      <div className="flex flex-col shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          disabled={idx === 0}
-                          onClick={() => moveQuestion(idx, "up")}
-                          aria-label="Move up"
-                        >
-                          <ChevronUp className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          disabled={idx === questions.length - 1}
-                          onClick={() => moveQuestion(idx, "down")}
-                          aria-label="Move down"
-                        >
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          <span className="text-muted-foreground mr-2">#{idx + 1}</span>
-                          {q.question_text}
-                        </p>
-                        <div className="flex gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {q.question_type === "summary" ? "Summary" : q.question_type === "multi_select" ? "Multi" : "Single"}
-                          </Badge>
-                        </div>
-                      </div>
-                      <Switch checked={q.enabled} onCheckedChange={(v) => toggleQuestion(q.id, v)} />
-                      <Button variant="ghost" size="icon" onClick={() => navigate(`/risk-assessment/admin/questions/${q.id}`)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteQuestion(q.id)}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Assessment Questions</h2>
 
-          {/* Right: Settings */}
-          <div className="space-y-6">
-            {/* AI Config */}
+          {questions.length === 0 ? (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">AI Configuration</CardTitle>
-                <CardDescription>Configure the AI model used for generating risk notes.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm">AI Endpoint URL</Label>
-                  <Input
-                    value={settings?.ai_endpoint_url ?? ""}
-                    onChange={(e) => settings && setSettings({ ...settings, ai_endpoint_url: e.target.value })}
-                    placeholder="https://api.example.com/v1"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">API Key</Label>
-                  <Input
-                    type="password"
-                    value={settings?.ai_api_key ?? ""}
-                    onChange={(e) => settings && setSettings({ ...settings, ai_api_key: e.target.value })}
-                    placeholder="sk-..."
-                  />
-                </div>
-                <div className="grid gap-4 grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Model</Label>
-                    <Select
-                      value={settings?.ai_model || "gemma2:9b"}
-                      onValueChange={(v) => settings && setSettings({ ...settings, ai_model: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="gemma2:9b">gemma2:9b</SelectItem>
-                        <SelectItem value="glm-4.7-flash:latest">glm-4.7-flash:latest</SelectItem>
-                        <SelectItem value="qwen3:14b">qwen3:14b</SelectItem>
-                        <SelectItem value="gemma3:12b">gemma3:12b</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Output Language</Label>
-                    <Select
-                      value={settings?.output_language ?? "English"}
-                      onValueChange={(v) => settings && setSettings({ ...settings, output_language: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["English", "Danish", "Norwegian", "Swedish", "German", "French", "Spanish", "Portuguese", "Italian", "Dutch", "Finnish", "Polish"].map((lang) => (
-                          <SelectItem key={lang} value={lang}>{lang}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">Global System Prompt</Label>
-                  <Textarea
-                    value={settings?.ai_prompt_template ?? ""}
-                    onChange={(e) => settings && setSettings({ ...settings, ai_prompt_template: e.target.value })}
-                    placeholder="e.g. You are a senior AML/KYC compliance analyst writing internal risk assessment notes for a Danish financial institution..."
-                    className="h-32 font-mono text-xs"
-                  />
-                  {settings?.ai_prompt_template && /\b(language:\s*(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch))\b/i.test(settings.ai_prompt_template) && (
-                    <div className="flex items-center gap-2 text-xs text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-md p-2">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                      <span>This prompt contains hardcoded language instructions that will be stripped at runtime. Use the "Output Language" dropdown instead.</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Sets the AI persona and context. <strong>Do NOT hardcode language here</strong> — use the Output Language dropdown above. Language lines will be automatically removed at runtime.
-                  </p>
-                </div>
-
-                {/* Prompt Debug Preview */}
-                <Collapsible>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2 w-full">
-                      <Eye className="h-3.5 w-3.5" /> Preview Assembled Prompt
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-2">
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs font-semibold text-muted-foreground">System Message (note generation)</Label>
-                        <pre className="mt-1 rounded-md border bg-muted/50 p-3 text-xs font-mono whitespace-pre-wrap max-h-48 overflow-auto">
-{(() => {
-  const outputLang = settings?.output_language || "English";
-  const rawPrompt = settings?.ai_prompt_template?.trim() || "You are a senior AML/KYC compliance analyst writing internal risk assessment notes.";
-  const langKw = /\b(language:\s*(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français))\b/gi;
-  const cleaned = rawPrompt.split("\n").filter((line) => !langKw.test(line)).join("\n");
-  return `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]
-You MUST write your ENTIRE response in ${outputLang}. Every single word must be in ${outputLang}.
-Do NOT use any other language, even if the input or instructions below contain text in another language.
-
-${cleaned}
-
-Rules:
-- Write exactly 2-4 sentences of professional risk analysis.
-- Do NOT repeat the question or selected answer back.
-- Base your analysis strictly on the provided factual context.
-- Focus on the risk implications of the selected answer.`;
-})()}
-                        </pre>
-                      </div>
-                      <div>
-                        <Label className="text-xs font-semibold text-muted-foreground">User Message (example)</Label>
-                        <pre className="mt-1 rounded-md border bg-muted/50 p-3 text-xs font-mono whitespace-pre-wrap max-h-48 overflow-auto">
-{`Write a concise risk analysis note for this question:
-
-Question: [question text]
-Background: [internal support text]
-Selected Answer: [selected answer]
-
-**IMPORTANT — You MUST follow these additional instructions:**
-[question-specific AI instructions if any]
-
-Provide only your professional risk analysis.
-
---- Factual Context (use ONLY this data) ---
-Question: [question text]
-Background: [internal support text]
-Selected Answer: [selected answer]
-Notes: [existing notes]`}
-                        </pre>
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No questions yet. Add your first question to get started.
               </CardContent>
             </Card>
-
-            <Button onClick={saveSettings} disabled={savingSettings} className="w-full gap-2">
-              {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save Settings
-            </Button>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              {questions.map((q, idx) => (
+                <Card key={q.id} className={`transition-opacity ${!q.enabled ? "opacity-50" : ""}`}>
+                  <CardContent className="flex items-center gap-3 py-3">
+                    <div className="flex flex-col shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        disabled={idx === 0}
+                        onClick={() => moveQuestion(idx, "up")}
+                        aria-label="Move up"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        disabled={idx === questions.length - 1}
+                        onClick={() => moveQuestion(idx, "down")}
+                        aria-label="Move down"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        <span className="text-muted-foreground mr-2">#{idx + 1}</span>
+                        {q.question_text}
+                      </p>
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">{q.category || "General"}</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {q.question_type === "summary" ? "Summary" : q.question_type === "multi_select" ? "Multi" : "Single"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Switch checked={q.enabled} onCheckedChange={(v) => toggleQuestion(q.id, v)} />
+                    <Button variant="ghost" size="icon" onClick={() => navigate(`/risk-assessment/admin/questions/${q.id}`)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteQuestion(q.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>
