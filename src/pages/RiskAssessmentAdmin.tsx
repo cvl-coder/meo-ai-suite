@@ -33,15 +33,7 @@ type SettingsData = {
   ai_api_key: string;
   ai_model: string;
   output_language: string;
-  data_sources: string[];
 };
-
-const DATA_SOURCE_OPTIONS = [
-  { value: "case_risk", label: "Case Risk Assessments" },
-  { value: "entity_risk", label: "Entity Risk Assessments" },
-  { value: "case_data", label: "Case Data" },
-  { value: "entity_data", label: "Entity Data" },
-];
 
 export default function RiskAssessmentAdmin() {
   const navigate = useNavigate();
