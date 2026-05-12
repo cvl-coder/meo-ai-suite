@@ -23,20 +23,8 @@ type Session = {
   id: string;
   customer_id: string;
   case_id: string;
-  total_score: number;
-  max_possible_score: number;
-  risk_level: string;
   status: string;
   created_at: string;
-};
-
-const riskBadge = (level: string) => {
-  switch (level) {
-    case "low": return <Badge className="bg-green-100 text-green-700 border-green-200">Low</Badge>;
-    case "medium": return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">Medium</Badge>;
-    case "high": return <Badge className="bg-red-100 text-red-700 border-red-200">High</Badge>;
-    default: return <Badge variant="secondary">Pending</Badge>;
-  }
 };
 
 export default function RiskAssessment() {
