@@ -212,25 +212,6 @@ export default function RiskAssessmentAdmin() {
 
           {/* Right: Settings */}
           <div className="space-y-6">
-            {/* Data Sources */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Data Sources</CardTitle>
-                <CardDescription>Choose which MEO data feeds into the assessment.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {DATA_SOURCE_OPTIONS.map((ds) => (
-                  <label key={ds.value} className="flex items-center gap-3 cursor-pointer">
-                    <Checkbox
-                      checked={settings?.data_sources.includes(ds.value)}
-                      onCheckedChange={() => toggleDataSource(ds.value)}
-                    />
-                    <span className="text-sm">{ds.label}</span>
-                  </label>
-                ))}
-              </CardContent>
-            </Card>
-
             {/* AI Config */}
             <Card>
               <CardHeader>
