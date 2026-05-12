@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Save, Eye, AlertTriangle } from "lucide-react";
+import { Settings, Plus, Loader2, ChevronUp, ChevronDown, Pencil, Trash2, Cpu } from "lucide-react";
 
 type Question = {
   id: string;
