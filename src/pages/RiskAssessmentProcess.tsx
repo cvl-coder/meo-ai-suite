@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken } from "@/lib/meoToken";
-import { ShieldCheck, Loader2, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Sparkles, Save, Eye, Copy } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle2, Sparkles, Save, Eye, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -20,7 +19,6 @@ type AnswerOption = {
   id: string;
   question_id: string;
   label: string;
-  score: number;
   sort_order: number;
   requires_followup?: boolean;
   followup_label?: string;
@@ -36,30 +34,20 @@ type Question = {
   category: string;
   question_text: string;
   description: string;
-  max_score: number;
   sort_order: number;
   ai_prompt_template: string;
   question_type: string;
   context_question_ids: string[];
   case_data_sources?: string[];
   case_data_fields?: CaseDataFields | null;
-  score_aggregation?: "none" | "sum" | "average" | "max";
 };
 
 type Answer = {
   question_id: string;
-  score: number;
   notes: string;
   followup_text?: string;
   selected_option_label?: string;
   selected_option_labels?: string[];
-};
-
-const riskLevelConfig = {
-  low: { label: "Low Risk", color: "text-green-600", bg: "bg-green-50 border-green-200", icon: CheckCircle2 },
-  medium: { label: "Medium Risk", color: "text-yellow-600", bg: "bg-yellow-50 border-yellow-200", icon: AlertTriangle },
-  high: { label: "High Risk", color: "text-red-600", bg: "bg-red-50 border-red-200", icon: XCircle },
-  pending: { label: "Pending", color: "text-muted-foreground", bg: "bg-muted border-border", icon: ShieldCheck },
 };
 
 export default function RiskAssessmentProcess() {
@@ -84,7 +72,6 @@ export default function RiskAssessmentProcess() {
   const [lastSummaryPrompt, setLastSummaryPrompt] = useState<DebugPrompt | null>(null);
   const [debugPromptOpen, setDebugPromptOpen] = useState<DebugPrompt | null>(null);
 
-  // Load questions, answer options, session, and settings
   useEffect(() => {
     (async () => {
       const [questionsRes, settingsRes, optionsRes] = await Promise.all([
@@ -96,7 +83,6 @@ export default function RiskAssessmentProcess() {
       setQuestions((questionsRes.data as any) || []);
       setSettings(settingsRes.data);
 
-      // Group answer options by question_id
       const optMap: Record<string, AnswerOption[]> = {};
       ((optionsRes.data as any[]) || []).forEach((o) => {
         if (!optMap[o.question_id]) optMap[o.question_id] = [];
@@ -115,38 +101,12 @@ export default function RiskAssessmentProcess() {
         }
         const answerMap: Record<string, Answer> = {};
         ((answersRes.data as any[]) || []).forEach((a) => {
-          answerMap[a.question_id] = { question_id: a.question_id, score: a.score, notes: a.notes || "", followup_text: a.followup_text || "" };
+          answerMap[a.question_id] = {
+            question_id: a.question_id,
+            notes: a.notes || "",
+            followup_text: a.followup_text || "",
+          };
         });
-        
-        // Reconstruct selected options from score + options
-        const loadedQuestions = (questionsRes.data as any[]) || [];
-        for (const qId of Object.keys(answerMap)) {
-          const opts = optMap[qId];
-          const q = loadedQuestions.find((qq: any) => qq.id === qId);
-          if (opts?.length) {
-            if (q?.question_type === "multi_select") {
-              // For multi-select, find combination of options that sum to the score
-              // Simple approach: try all options and find those selected
-              const selectedLabels: string[] = [];
-              let remaining = answerMap[qId].score;
-              for (const o of [...opts].sort((a, b) => b.score - a.score)) {
-                if (remaining >= o.score && o.score > 0) {
-                  selectedLabels.push(o.label);
-                  remaining -= o.score;
-                }
-              }
-              answerMap[qId].selected_option_labels = selectedLabels;
-              answerMap[qId].selected_option_label = selectedLabels.join(", ");
-            } else {
-              const matchingOpt = opts.find(o => o.score === answerMap[qId].score);
-              if (matchingOpt) {
-                answerMap[qId].selected_option_label = matchingOpt.label;
-                answerMap[qId].selected_option_labels = [matchingOpt.label];
-              }
-            }
-          }
-        }
-        
         setAnswers(answerMap);
       }
 
@@ -155,7 +115,7 @@ export default function RiskAssessmentProcess() {
   }, [sessionId]);
 
   const getAnswer = (questionId: string): Answer => {
-    return answers[questionId] || { question_id: questionId, score: 0, notes: "", followup_text: "", selected_option_label: undefined };
+    return answers[questionId] || { question_id: questionId, notes: "", followup_text: "", selected_option_label: undefined };
   };
 
   const updateAnswer = (questionId: string, updates: Partial<Answer>) => {
@@ -173,66 +133,14 @@ export default function RiskAssessmentProcess() {
       const newLabels = isSelected
         ? currentLabels.filter((l) => l !== option.label)
         : [...currentLabels, option.label];
-      
-      // Sum scores of all selected options
-      const options = answerOptionsByQuestion[question.id] || [];
-      const newScore = options
-        .filter((o) => newLabels.includes(o.label))
-        .reduce((sum, o) => sum + o.score, 0);
-      
       updateAnswer(question.id, {
-        score: newScore,
         selected_option_labels: newLabels,
         selected_option_label: newLabels.join(", "),
       });
     } else {
-      updateAnswer(question.id, { score: option.score, selected_option_label: option.label, selected_option_labels: [option.label] });
+      updateAnswer(question.id, { selected_option_label: option.label, selected_option_labels: [option.label] });
     }
   };
-
-  const calculateScores = useCallback(() => {
-    let totalScore = 0;
-    let maxPossible = 0;
-    questions.forEach((q) => {
-      if (q.question_type === "summary") {
-        if (!q.score_aggregation || q.score_aggregation === "none") return; // narrative-only, skip
-        // Compute live so totals stay correct even before "Generate" is clicked
-        const sourceIds: string[] = Array.isArray(q.context_question_ids) ? q.context_question_ids : [];
-        const sources = sourceIds
-          .map((sid) => ({ q: questions.find((qq) => qq.id === sid), a: answers[sid] }))
-          .filter((s): s is { q: Question; a: Answer } => !!s.q);
-        if (sources.length === 0) return;
-        if (q.score_aggregation === "sum") {
-          totalScore += sources.reduce((s, x) => s + (x.a?.score || 0), 0);
-          maxPossible += sources.reduce((s, x) => s + (x.q.max_score || 0), 0);
-        } else if (q.score_aggregation === "average") {
-          const t = sources.reduce((s, x) => s + (x.a?.score || 0), 0);
-          const m = sources.reduce((s, x) => s + (x.q.max_score || 0), 0);
-          totalScore += Math.round(t / sources.length);
-          maxPossible += Math.round(m / sources.length);
-        } else if (q.score_aggregation === "max") {
-          totalScore += Math.max(0, ...sources.map((x) => x.a?.score || 0));
-          maxPossible += Math.max(0, ...sources.map((x) => x.q.max_score || 0));
-        }
-        return;
-      }
-      const answer = answers[q.id];
-      totalScore += answer?.score || 0;
-      maxPossible += q.max_score;
-    });
-    return { totalScore, maxPossible };
-  }, [answers, questions]);
-
-  const getRiskLevel = useCallback(
-    (percentage: number): string => {
-      const low = settings?.low_threshold ?? 30;
-      const medium = settings?.medium_threshold ?? 60;
-      if (percentage <= low) return "low";
-      if (percentage <= medium) return "medium";
-      return "high";
-    },
-    [settings]
-  );
 
   const fetchCaseDataBlock = useCallback(async (question: Question): Promise<string> => {
     const cdf = question.case_data_fields;
@@ -270,18 +178,14 @@ export default function RiskAssessmentProcess() {
     const getMainCompanyItem = (caseObj: any) => caseObj?.mainCompany || caseObj?.subject || caseObj?.mainEntity || caseObj?.caseSubject || caseObj?.entity || null;
 
     const parts: string[] = [];
-
-    // Always need the case for most sections
     const caseData = await invoke("getCase", { caseId, customerId, personToken: meoToken });
     const cd = caseData?.data || caseData;
 
-    // Field-level (new) path
     if (useNew && cdf) {
       const fields = cdf.fields || {};
       const affiliated = Array.isArray(cd?.affiliatedCompanies) ? cd.affiliatedCompanies : [];
       const explicitMain = getMainCompanyItem(cd);
 
-      // Resolve main company from explicit case mainCompany, or configured id. Never fall back to affiliatedCompanies[0].
       const candidates = [explicitMain, ...affiliated].filter(Boolean);
       const mainMatch = cdf.main_company_entity_id
         ? candidates.find((item: any) => getEntityId(item) === String(cdf.main_company_entity_id) || String(item?.caseEntityId || "") === String(cdf.main_company_entity_id))
@@ -323,8 +227,7 @@ export default function RiskAssessmentProcess() {
         renderSection("Case-level risk assessments", Array.isArray(data) ? data[0] : data, fields.case_risk);
       }
       if (fields.entity_risk?.length && mainEntity) {
-        const eid = mainEntityId;
-        const r = await invoke("getEntityRiskAssessments", { entityId: eid, customerId, personToken: meoToken, page: 1, limit: 50 });
+        const r = await invoke("getEntityRiskAssessments", { entityId: mainEntityId, customerId, personToken: meoToken, page: 1, limit: 50 });
         const data = r?.data || r;
         renderSection("Entity-level risk assessments", Array.isArray(data) ? data[0] : data, fields.entity_risk);
       } else if (fields.entity_risk?.length) {
@@ -345,7 +248,6 @@ export default function RiskAssessmentProcess() {
       return `\n\n--- Case Context (from MEO) ---\n${parts.join("\n\n")}\n--- End of case context ---\n`;
     }
 
-    // Legacy path (kept so existing questions still work). Does NOT fall back to affiliatedCompanies[0] for main_company.
     const truncate = (s: string, max = 4000) => (s.length > max ? s.slice(0, max) + "\n...[truncated]" : s);
     if (legacy.includes("main_company")) {
       parts.push(`### Main company\n(no main company configured for this question — open the question editor and pick one)`);
@@ -379,12 +281,10 @@ export default function RiskAssessmentProcess() {
       const outputLang = settings?.output_language || "English";
       const selectedLabel = currentAnswer.selected_option_label || "(no selection)";
 
-      // Build system prompt: strip any hardcoded language from the global template
       const rawGlobalPrompt = settings?.ai_prompt_template?.trim()
         ? settings.ai_prompt_template.trim()
         : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
 
-      // Remove lines that hardcode a language so the dropdown is the single source of truth
       const languageLinePattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
       const cleanedGlobalPrompt = rawGlobalPrompt
         .split("\n")
@@ -399,7 +299,7 @@ export default function RiskAssessmentProcess() {
         `${cleanedGlobalPrompt}\n\n` +
         `Rules:\n` +
         `- Write exactly 2-4 sentences of professional risk analysis.\n` +
-        `- Do NOT repeat the question, score, or selected answer back.\n` +
+        `- Do NOT repeat the question or selected answer back.\n` +
         `- Base your analysis strictly on the provided factual context.\n` +
         `- Focus on the risk implications of the selected answer.`;
 
@@ -409,7 +309,6 @@ export default function RiskAssessmentProcess() {
         ? `\n\n**IMPORTANT — You MUST follow these additional instructions:**\n${question.ai_prompt_template.trim()}\n`
         : ``;
 
-      // Build context from referenced questions (numbered to match user-visible question numbers)
       const contextIds: string[] = Array.isArray(question.context_question_ids) ? question.context_question_ids : [];
       let contextBlock = "";
       if (contextIds.length > 0) {
@@ -419,15 +318,15 @@ export default function RiskAssessmentProcess() {
             if (!cq) return null;
             const qNumber = questions.findIndex((q) => q.id === cid) + 1;
             const ca = getAnswer(cid);
-            const caLabel = ca.selected_option_label || ca.selected_option_labels?.join(", ") || `(no selection, score ${ca.score})`;
-            let part = `Spørgsmål ${qNumber} / Question ${qNumber}: ${cq.question_text}\nAnswer / Svar: ${caLabel}\nScore: ${ca.score} / ${cq.max_score}`;
-            if (ca.followup_text) part += `\nFollow-up details / Uddybning: ${ca.followup_text}`;
-            if (ca.notes) part += `\nExisting AI Note: ${ca.notes}`;
+            const caLabel = ca.selected_option_label || ca.selected_option_labels?.join(", ") || `(no selection)`;
+            let part = `Question ${qNumber}: ${cq.question_text}\nAnswer: ${caLabel}`;
+            if (ca.followup_text) part += `\nFollow-up: ${ca.followup_text}`;
+            if (ca.notes) part += `\nExisting note: ${ca.notes}`;
             return part;
           })
           .filter(Boolean);
         if (contextParts.length > 0) {
-          contextBlock = `\n\n--- Context from related questions / Kontekst fra relaterede spørgsmål ---\n${contextParts.join("\n\n")}\n--- End of context ---\nIMPORTANT: You MUST consider the answers from the related questions above when generating your response. If your instructions reference a specific question number (e.g. "spørgsmål 3"), use the matching numbered context above.\n`;
+          contextBlock = `\n\n--- Context from related questions ---\n${contextParts.join("\n\n")}\n--- End of context ---\nIMPORTANT: Consider the answers above.\n`;
         }
       }
 
@@ -435,7 +334,7 @@ export default function RiskAssessmentProcess() {
         `Write a concise risk analysis note for this question:\n\n` +
         `Question: {{question}}\n` +
         (questionDescription ? `Background: {{description}}\n` : ``) +
-        `Selected Answer: {{selected_answer}}\nCurrent Score: {{score}} / {{max_score}}\n` +
+        `Selected Answer: {{selected_answer}}\n` +
         questionSpecificInstructions +
         contextBlock +
         `\nProvide only your professional risk analysis.`;
@@ -443,20 +342,15 @@ export default function RiskAssessmentProcess() {
       let userPrompt = defaultUserPrompt
         .replace(/\{\{question\}\}/g, question.question_text)
         .replace(/\{\{description\}\}/g, questionDescription)
-        .replace(/\{\{score\}\}/g, String(currentAnswer.score))
-        .replace(/\{\{max_score\}\}/g, String(question.max_score))
-        .replace(/\{\{selected_answer\}\}/g, selectedLabel)
-        .replace(/\{\{all_answers\}\}/g, "");
+        .replace(/\{\{selected_answer\}\}/g, selectedLabel);
 
-      // Always append factual context so the AI never hallucinates
       const factBlock = `\n\n--- Factual Context (use ONLY this data) ---\nQuestion: ${question.question_text}` +
         (questionDescription ? `\nBackground: ${questionDescription}` : ``) +
-        `\nSelected Answer: ${selectedLabel}\nScore: ${currentAnswer.score} / ${question.max_score}` +
+        `\nSelected Answer: ${selectedLabel}` +
         (currentAnswer.followup_text ? `\nFollow-up details: ${currentAnswer.followup_text}` : ``) +
         `\nNotes: ${currentAnswer.notes || "(none)"}`;
       userPrompt += factBlock;
 
-      // Inject MEO case data selected for this question
       const caseDataBlock = await fetchCaseDataBlock(question);
       if (caseDataBlock) userPrompt += caseDataBlock;
 
@@ -464,7 +358,6 @@ export default function RiskAssessmentProcess() {
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const authSession = (await supabase.auth.getSession()).data.session;
 
-      const provider = "custom";
       const endpointUrl = settings?.ai_endpoint_url || "http://core.meo.io/v1";
       const modelName = settings?.ai_model || "llama3.1:latest";
       setLastPromptByQuestion((prev) => ({
@@ -483,9 +376,9 @@ export default function RiskAssessmentProcess() {
             { role: "system", content: systemMessage },
             { role: "user", content: userPrompt },
           ],
-          model: settings?.ai_model || "llama3.1:latest",
-          provider,
-          custom_endpoint: settings?.ai_endpoint_url || "http://core.meo.io/v1",
+          model: modelName,
+          provider: "custom",
+          custom_endpoint: endpointUrl,
           custom_api_key: settings?.ai_api_key || "",
         }),
       });
@@ -526,34 +419,6 @@ export default function RiskAssessmentProcess() {
     setGeneratingNoteFor(null);
   };
 
-  // Compute the aggregated score for a Summary question from its source questions' answers
-  const computeSummaryScore = (q: Question): { score: number; maxScore: number } => {
-    const sourceIds: string[] = Array.isArray(q.context_question_ids) ? q.context_question_ids : [];
-    const sources = sourceIds
-      .map((sid) => ({ q: questions.find((qq) => qq.id === sid), a: getAnswer(sid) }))
-      .filter((s): s is { q: Question; a: Answer } => !!s.q);
-    if (sources.length === 0) return { score: 0, maxScore: 0 };
-    const agg = q.score_aggregation || "none";
-    if (agg === "sum") {
-      return {
-        score: sources.reduce((s, x) => s + (x.a.score || 0), 0),
-        maxScore: sources.reduce((s, x) => s + (x.q.max_score || 0), 0),
-      };
-    }
-    if (agg === "average") {
-      const total = sources.reduce((s, x) => s + (x.a.score || 0), 0);
-      const maxTotal = sources.reduce((s, x) => s + (x.q.max_score || 0), 0);
-      return { score: Math.round(total / sources.length), maxScore: Math.round(maxTotal / sources.length) };
-    }
-    if (agg === "max") {
-      return {
-        score: Math.max(0, ...sources.map((x) => x.a.score || 0)),
-        maxScore: Math.max(0, ...sources.map((x) => x.q.max_score || 0)),
-      };
-    }
-    return { score: 0, maxScore: 0 };
-  };
-
   const generateSummaryForQuestion = async (question: Question) => {
     setGeneratingNoteFor(question.id);
     try {
@@ -587,7 +452,7 @@ export default function RiskAssessmentProcess() {
           const sa = getAnswer(sid);
           const globalNum = questions.findIndex((qq) => qq.id === sid) + 1;
           const label = sa.selected_option_label || sa.selected_option_labels?.join(", ") || `(no selection)`;
-          let block = `${i + 1}. [#${globalNum}] ${sq.question_text}\n   Answer: ${label}  (score ${sa.score}/${sq.max_score})`;
+          let block = `${i + 1}. [#${globalNum}] ${sq.question_text}\n   Answer: ${label}`;
           if (sa.followup_text) block += `\n   Follow-up: ${sa.followup_text}`;
           if (sa.notes) block += `\n   Existing note: ${sa.notes}`;
           return block;
@@ -631,9 +496,9 @@ export default function RiskAssessmentProcess() {
             { role: "system", content: systemMessage },
             { role: "user", content: userPrompt },
           ],
-          model: settings?.ai_model || "llama3.1:latest",
+          model: modelName2,
           provider: "custom",
-          custom_endpoint: settings?.ai_endpoint_url || "http://core.meo.io/v1",
+          custom_endpoint: endpointUrl2,
           custom_api_key: settings?.ai_api_key || "",
         }),
       });
@@ -663,8 +528,7 @@ export default function RiskAssessmentProcess() {
             const delta = p.choices?.[0]?.delta?.content;
             if (delta) {
               fullText += delta;
-              const agg = computeSummaryScore(question);
-              updateAnswer(question.id, { notes: fullText, score: agg.score });
+              updateAnswer(question.id, { notes: fullText });
             }
           } catch {}
         }
@@ -677,9 +541,6 @@ export default function RiskAssessmentProcess() {
 
   const generateAiSummary = async () => {
     if (!session?.id) return;
-    const meoToken = getMeoToken();
-    const customerId = session.customer_id || localStorage.getItem("selectedCustomerId") || "";
-    const caseId = session.case_id || localStorage.getItem(`meo_case_id:${customerId}`) || "";
 
     setGeneratingSummary(true);
     setStreamedSummary("");
@@ -691,20 +552,15 @@ export default function RiskAssessmentProcess() {
           question: q.question_text,
           category: q.category,
           internalSupportText: q.description || "",
-          selectedAnswer: a.selected_option_label || a.selected_option_labels?.join(", ") || `Score ${a.score}`,
-          score: a.score,
-          maxScore: q.max_score,
+          selectedAnswer: a.selected_option_label || a.selected_option_labels?.join(", ") || "(no selection)",
           notes: a.notes || "",
         };
       });
 
-      const { totalScore: ts, maxPossible: mp } = calculateScores();
-      const pct = mp > 0 ? (ts / mp) * 100 : 0;
-
       const summaryLang = settings?.output_language || "English";
       const rawSummaryPrompt = settings?.ai_prompt_template ||
         "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.";
-      
+
       const summaryLangPattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
       const cleanedSummaryPrompt = rawSummaryPrompt
         .split("\n")
@@ -714,8 +570,7 @@ export default function RiskAssessmentProcess() {
       const systemMessage =
         `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
         `You MUST write your ENTIRE response in ${summaryLang}. Every single word must be in ${summaryLang}.\n` +
-        `Do NOT use any other language, even if the input data or notes below contain text in another language.\n` +
-        `If ${summaryLang} is "Danish", use proper Danish. If "English", use proper English.\n\n` +
+        `Do NOT use any other language, even if the input data or notes below contain text in another language.\n\n` +
         `${cleanedSummaryPrompt}\n\n` +
         `Rules:\n` +
         `- Write a structured risk assessment summary in ${summaryLang}.\n` +
@@ -726,14 +581,10 @@ export default function RiskAssessmentProcess() {
       const userMessage =
         `Analyze the following risk assessment and provide a summary in ${summaryLang}.\n\n` +
         `## Risk Assessment Data\n\n` +
-        `### Overall Result\n` +
-        `Total Score: ${ts.toFixed(1)} / ${mp.toFixed(1)} (${pct.toFixed(0)}%)\n` +
-        `Risk Level: ${getRiskLevel(pct)}\n\n` +
         `### Question-by-Question Breakdown\n` +
         answersContext.map((a, i) =>
           `**${i + 1}. ${a.question}** (Category: ${a.category})\n` +
           `- Selected answer: ${a.selectedAnswer}\n` +
-          `- Score: ${a.score} / ${a.maxScore}\n` +
           (a.notes ? `- AI analysis / notes:\n${a.notes}\n` : "") +
           (a.internalSupportText ? `- Background context: ${a.internalSupportText}\n` : "")
         ).join("\n") +
@@ -748,7 +599,6 @@ export default function RiskAssessmentProcess() {
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const authSession = (await supabase.auth.getSession()).data.session;
 
-      const provider = "custom";
       const endpointUrl3 = settings?.ai_endpoint_url || "http://core.meo.io/v1";
       const modelName3 = settings?.ai_model || "llama3.1:latest";
       setLastSummaryPrompt({ system: systemMessage, user: userMessage, model: modelName3, endpoint: endpointUrl3, ts: new Date().toISOString() });
@@ -764,9 +614,9 @@ export default function RiskAssessmentProcess() {
             { role: "system", content: systemMessage },
             { role: "user", content: userMessage },
           ],
-          model: settings?.ai_model || "llama3.1:latest",
-          provider,
-          custom_endpoint: settings?.ai_endpoint_url || "http://core.meo.io/v1",
+          model: modelName3,
+          provider: "custom",
+          custom_endpoint: endpointUrl3,
           custom_api_key: settings?.ai_api_key || "",
         }),
       });
@@ -819,22 +669,16 @@ export default function RiskAssessmentProcess() {
       const answer = getAnswer(questionId);
       let currentSessionId = sessionId;
 
-      // Create session if it doesn't exist yet
       if (!currentSessionId) {
-        const { totalScore, maxPossible } = calculateScores();
-        const percentage = maxPossible > 0 ? (totalScore / maxPossible) * 100 : 0;
-        const riskLevel = getRiskLevel(percentage);
-
+        const customerId = localStorage.getItem("selectedCustomerId") || "";
+        const caseId = localStorage.getItem(`meo_case_id:${customerId}`) || "";
         const { data: newSession, error } = await supabase
           .from("risk_assessment_sessions")
           .insert({
-            customer_id: localStorage.getItem("selectedCustomerId") || "",
-            case_id: localStorage.getItem(`meo_case_id:${localStorage.getItem("selectedCustomerId")}`) || "",
-            total_score: totalScore,
-            max_possible_score: maxPossible,
-            risk_level: riskLevel,
+            customer_id: customerId,
+            case_id: caseId,
             status: "in_progress",
-          })
+          } as any)
           .select()
           .single();
 
@@ -844,7 +688,6 @@ export default function RiskAssessmentProcess() {
         navigate(`/risk-assessment/process/${currentSessionId}`, { replace: true });
       }
 
-      // Upsert the single answer
       await supabase.from("risk_assessment_answers").delete()
         .eq("session_id", currentSessionId!)
         .eq("question_id", questionId);
@@ -852,10 +695,9 @@ export default function RiskAssessmentProcess() {
       await supabase.from("risk_assessment_answers").insert({
         session_id: currentSessionId!,
         question_id: questionId,
-        score: answer.score,
         notes: answer.notes,
         followup_text: answer.followup_text || "",
-      });
+      } as any);
 
       setSavedAnswers((prev) => new Set(prev).add(questionId));
       toast({ title: "Answer saved" });
@@ -868,23 +710,18 @@ export default function RiskAssessmentProcess() {
   const handleSubmit = async () => {
     setSaving(true);
     try {
-      const { totalScore, maxPossible } = calculateScores();
-      const percentage = maxPossible > 0 ? (totalScore / maxPossible) * 100 : 0;
-      const riskLevel = getRiskLevel(percentage);
-
       let currentSessionId = sessionId;
 
       if (!currentSessionId) {
+        const customerId = localStorage.getItem("selectedCustomerId") || "";
+        const caseId = localStorage.getItem(`meo_case_id:${customerId}`) || "";
         const { data: newSession, error } = await supabase
           .from("risk_assessment_sessions")
           .insert({
-            customer_id: localStorage.getItem("selectedCustomerId") || "",
-            case_id: localStorage.getItem(`meo_case_id:${localStorage.getItem("selectedCustomerId")}`) || "",
-            total_score: totalScore,
-            max_possible_score: maxPossible,
-            risk_level: riskLevel,
+            customer_id: customerId,
+            case_id: caseId,
             status: "completed",
-          })
+          } as any)
           .select()
           .single();
 
@@ -894,21 +731,20 @@ export default function RiskAssessmentProcess() {
       } else {
         await supabase
           .from("risk_assessment_sessions")
-          .update({ total_score: totalScore, max_possible_score: maxPossible, risk_level: riskLevel, status: "completed", updated_at: new Date().toISOString() })
+          .update({ status: "completed", updated_at: new Date().toISOString() })
           .eq("id", currentSessionId);
       }
 
       const answerRows = Object.values(answers).map((a) => ({
         session_id: currentSessionId!,
         question_id: a.question_id,
-        score: a.score,
         notes: a.notes,
         followup_text: a.followup_text || "",
       }));
 
       if (answerRows.length > 0) {
         await supabase.from("risk_assessment_answers").delete().eq("session_id", currentSessionId!);
-        await supabase.from("risk_assessment_answers").insert(answerRows);
+        await supabase.from("risk_assessment_answers").insert(answerRows as any);
       }
 
       setShowConclusion(true);
@@ -933,12 +769,6 @@ export default function RiskAssessmentProcess() {
     );
   }
 
-  const { totalScore, maxPossible } = calculateScores();
-  const percentage = maxPossible > 0 ? (totalScore / maxPossible) * 100 : 0;
-  const riskLevel = getRiskLevel(percentage);
-  const rlConfig = riskLevelConfig[riskLevel as keyof typeof riskLevelConfig] || riskLevelConfig.pending;
-  const RiskIcon = rlConfig.icon;
-
   const categories = Array.from(new Set(questions.map((q) => q.category || "General")));
 
   if (showConclusion) {
@@ -953,44 +783,25 @@ export default function RiskAssessmentProcess() {
             <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
               Assessment Conclusion
             </h1>
-
-            <Card className={`border-2 ${rlConfig.bg}`}>
-              <CardContent className="py-10 flex flex-col items-center gap-4">
-                <RiskIcon className={`h-16 w-16 ${rlConfig.color}`} />
-                <div className="text-center">
-                  <p className={`text-4xl font-bold ${rlConfig.color}`}>{rlConfig.label}</p>
-                  <p className="text-lg text-muted-foreground mt-2">
-                    Score: {totalScore.toFixed(1)} / {maxPossible.toFixed(1)} ({percentage.toFixed(0)}%)
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Score Breakdown</CardTitle>
+              <CardTitle className="text-base">Answers</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {questions.map((q, qIdx) => {
                 const a = getAnswer(q.id);
                 return (
-                  <div key={q.id} className="flex items-center justify-between rounded-md border p-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        <span className="text-muted-foreground mr-2">#{qIdx + 1}</span>
-                        {q.question_text}
-                      </p>
-                      {a.selected_option_label && (
-                        <p className="text-xs text-muted-foreground mt-0.5">Answer: {a.selected_option_label}</p>
-                      )}
-                      {a.notes && <p className="text-xs text-muted-foreground mt-1 truncate">{a.notes}</p>}
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Badge variant={a.score === 0 ? "secondary" : a.score >= q.max_score * 0.7 ? "destructive" : "default"}>
-                        {a.score} / {q.max_score}
-                      </Badge>
-                    </div>
+                  <div key={q.id} className="rounded-md border p-3">
+                    <p className="text-sm font-medium">
+                      <span className="text-muted-foreground mr-2">#{qIdx + 1}</span>
+                      {q.question_text}
+                    </p>
+                    {a.selected_option_label && (
+                      <p className="text-xs text-muted-foreground mt-1">Answer: {a.selected_option_label}</p>
+                    )}
+                    {a.notes && <p className="text-xs text-muted-foreground mt-1">{a.notes}</p>}
                   </div>
                 );
               })}
@@ -1019,7 +830,7 @@ export default function RiskAssessmentProcess() {
                 </div>
               </div>
               <CardDescription>
-                Generates a comprehensive summary based on all your scored answers, selected options, and AI-generated notes.
+                Generates a comprehensive summary based on all selected answers and AI-generated notes.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1028,10 +839,10 @@ export default function RiskAssessmentProcess() {
                   <ReactMarkdown>{generatingSummary ? streamedSummary : session.ai_summary}</ReactMarkdown>
                 </div>
               ) : !generatingSummary ? (
-                <p className="text-sm text-muted-foreground">Click "Generate Summary" to create an AI-powered analysis of this assessment combined with case risk data.</p>
+                <p className="text-sm text-muted-foreground">Click "Generate Summary" to create an AI-powered analysis of this assessment.</p>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Fetching case risk data and generating summary...
+                  <Loader2 className="h-4 w-4 animate-spin" /> Generating summary...
                 </div>
               )}
             </CardContent>
@@ -1058,9 +869,6 @@ export default function RiskAssessmentProcess() {
           <Button variant="ghost" onClick={() => navigate("/risk-assessment")} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
-          <Badge variant="outline" className="text-sm">
-            Score: {totalScore.toFixed(1)} / {maxPossible.toFixed(1)} ({percentage.toFixed(0)}%)
-          </Badge>
         </div>
 
         <div className="space-y-2">
@@ -1095,7 +903,6 @@ export default function RiskAssessmentProcess() {
                       const sources = sourceIds
                         .map((sid) => ({ q: questions.find((qq) => qq.id === sid), a: getAnswer(sid) }))
                         .filter((s): s is { q: Question; a: Answer } => !!s.q);
-                      const agg = computeSummaryScore(q);
                       const hasGenerated = !!answer.notes;
 
                       return (
@@ -1111,11 +918,6 @@ export default function RiskAssessmentProcess() {
                                   </Label>
                                 </div>
                               </div>
-                              {q.score_aggregation && q.score_aggregation !== "none" && (
-                                <Badge variant="outline" className="text-xs font-mono shrink-0">
-                                  {agg.score} / {agg.maxScore}
-                                </Badge>
-                              )}
                             </div>
 
                             {sources.length === 0 && !hasGenerated && (
@@ -1168,7 +970,6 @@ export default function RiskAssessmentProcess() {
                           </div>
 
                           {hasOptions ? (
-                            /* Answer option buttons — score is hidden from user */
                             <div className="grid gap-2">
                               {options.map((opt) => {
                                 const isMulti = q.question_type === "multi_select";
@@ -1211,22 +1012,9 @@ export default function RiskAssessmentProcess() {
                               })}
                             </div>
                           ) : (
-                            /* Fallback slider for questions without predefined options */
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-muted-foreground">Score</span>
-                                <Badge variant="outline" className="text-xs font-mono">
-                                  {answer.score} / {q.max_score}
-                                </Badge>
-                              </div>
-                              <Slider
-                                value={[answer.score]}
-                                min={0}
-                                max={q.max_score}
-                                step={1}
-                                onValueChange={([val]) => updateAnswer(q.id, { score: val })}
-                              />
-                            </>
+                            <p className="text-xs text-muted-foreground italic">
+                              No answer options configured. Edit this question in the admin to add options.
+                            </p>
                           )}
 
                           <div className="flex items-center gap-2">
@@ -1277,14 +1065,7 @@ export default function RiskAssessmentProcess() {
 
             <div className="sticky bottom-4 z-10">
               <Card className="border-primary/30 shadow-lg">
-                <CardContent className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-3">
-                    <RiskIcon className={`h-5 w-5 ${rlConfig.color}`} />
-                    <span className={`font-medium ${rlConfig.color}`}>{rlConfig.label}</span>
-                    <span className="text-sm text-muted-foreground">
-                      ({percentage.toFixed(0)}%)
-                    </span>
-                  </div>
+                <CardContent className="flex items-center justify-end py-4">
                   <Button onClick={handleSubmit} disabled={saving} className="gap-2">
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                     {saving ? "Saving..." : "Complete Assessment"}

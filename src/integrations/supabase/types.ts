@@ -179,7 +179,6 @@ export type Database = {
           label: string
           question_id: string
           requires_followup: boolean
-          score: number
           sort_order: number
         }
         Insert: {
@@ -189,7 +188,6 @@ export type Database = {
           label: string
           question_id: string
           requires_followup?: boolean
-          score?: number
           sort_order?: number
         }
         Update: {
@@ -199,7 +197,6 @@ export type Database = {
           label?: string
           question_id?: string
           requires_followup?: boolean
-          score?: number
           sort_order?: number
         }
         Relationships: [
@@ -219,7 +216,6 @@ export type Database = {
           id: string
           notes: string | null
           question_id: string
-          score: number
           session_id: string
         }
         Insert: {
@@ -228,7 +224,6 @@ export type Database = {
           id?: string
           notes?: string | null
           question_id: string
-          score?: number
           session_id: string
         }
         Update: {
@@ -237,7 +232,6 @@ export type Database = {
           id?: string
           notes?: string | null
           question_id?: string
-          score?: number
           session_id?: string
         }
         Relationships: [
@@ -268,13 +262,10 @@ export type Database = {
           description: string | null
           enabled: boolean
           id: string
-          max_score: number
           question_text: string
           question_type: string
-          score_aggregation: string
           sort_order: number
           updated_at: string
-          weight: number
         }
         Insert: {
           ai_prompt_template?: string
@@ -286,13 +277,10 @@ export type Database = {
           description?: string | null
           enabled?: boolean
           id?: string
-          max_score?: number
           question_text: string
           question_type?: string
-          score_aggregation?: string
           sort_order?: number
           updated_at?: string
-          weight?: number
         }
         Update: {
           ai_prompt_template?: string
@@ -304,13 +292,10 @@ export type Database = {
           description?: string | null
           enabled?: boolean
           id?: string
-          max_score?: number
           question_text?: string
           question_type?: string
-          score_aggregation?: string
           sort_order?: number
           updated_at?: string
-          weight?: number
         }
         Relationships: []
       }
@@ -322,10 +307,7 @@ export type Database = {
           created_by: string | null
           customer_id: string
           id: string
-          max_possible_score: number
-          risk_level: string
           status: string
-          total_score: number
           updated_at: string
         }
         Insert: {
@@ -335,10 +317,7 @@ export type Database = {
           created_by?: string | null
           customer_id: string
           id?: string
-          max_possible_score?: number
-          risk_level?: string
           status?: string
-          total_score?: number
           updated_at?: string
         }
         Update: {
@@ -348,10 +327,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string
           id?: string
-          max_possible_score?: number
-          risk_level?: string
           status?: string
-          total_score?: number
           updated_at?: string
         }
         Relationships: []
@@ -364,8 +340,6 @@ export type Database = {
           ai_prompt_template: string
           data_sources: Json
           id: string
-          low_threshold: number
-          medium_threshold: number
           output_language: string
           updated_at: string
         }
@@ -376,8 +350,6 @@ export type Database = {
           ai_prompt_template?: string
           data_sources?: Json
           id?: string
-          low_threshold?: number
-          medium_threshold?: number
           output_language?: string
           updated_at?: string
         }
@@ -388,8 +360,6 @@ export type Database = {
           ai_prompt_template?: string
           data_sources?: Json
           id?: string
-          low_threshold?: number
-          medium_threshold?: number
           output_language?: string
           updated_at?: string
         }

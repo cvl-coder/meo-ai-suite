@@ -21,7 +21,6 @@ type AnswerOption = {
   id?: string;
   question_id?: string;
   label: string;
-  score: number;
   sort_order: number;
   requires_followup?: boolean;
   followup_label?: string;
@@ -32,25 +31,13 @@ type Question = {
   category: string;
   question_text: string;
   description: string;
-  max_score: number;
   sort_order: number;
   enabled: boolean;
   ai_prompt_template: string;
   question_type: string;
   context_question_ids: string[];
   case_data_sources?: string[];
-  score_aggregation?: "none" | "sum" | "average" | "max";
 };
-
-const CASE_DATA_SOURCES: { value: string; label: string; description: string }[] = [
-  { value: "main_company", label: "Main company", description: "Name, org no., country, role on case." },
-  { value: "affiliated_companies", label: "All affiliated companies", description: "Full list of companies on the case." },
-  { value: "individuals", label: "Individuals on case", description: "Names, roles and types of individuals." },
-  { value: "case_risk", label: "Case-level risk assessments", description: "Existing risk scores and notes on the case." },
-  { value: "entity_risk", label: "Entity-level risk assessments", description: "Risk assessments for the main company / individuals." },
-  { value: "custom_properties", label: "Custom properties", description: "KYC custom fields stored on the main company." },
-  { value: "documents", label: "Documents (metadata)", description: "Filenames and types attached to entities." },
-];
 
 export default function RiskAssessmentQuestionEdit() {
   const navigate = useNavigate();
@@ -65,7 +52,6 @@ export default function RiskAssessmentQuestionEdit() {
     category: "",
     question_text: "",
     description: "",
-    max_score: 5,
     sort_order: 0,
     enabled: true,
     ai_prompt_template: "",
@@ -73,7 +59,6 @@ export default function RiskAssessmentQuestionEdit() {
     context_question_ids: [] as string[],
     case_data_sources: [] as string[],
     case_data_fields: EMPTY_FIELDS as CaseDataFields,
-    score_aggregation: "none" as "none" | "sum" | "average" | "max",
   });
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([]);
 
@@ -94,7 +79,6 @@ export default function RiskAssessmentQuestionEdit() {
             category: q.category,
             question_text: q.question_text,
             description: q.description,
-            max_score: q.max_score,
             sort_order: q.sort_order,
             enabled: q.enabled,
             ai_prompt_template: q.ai_prompt_template || "",
@@ -104,7 +88,6 @@ export default function RiskAssessmentQuestionEdit() {
             case_data_fields: ((q as any).case_data_fields && typeof (q as any).case_data_fields === "object")
               ? { main_company_entity_id: (q as any).case_data_fields.main_company_entity_id ?? null, fields: (q as any).case_data_fields.fields ?? {} }
               : EMPTY_FIELDS,
-            score_aggregation: ((q as any).score_aggregation as any) || "none",
           });
           const { data: opts } = await supabase
             .from("risk_assessment_answer_options")
@@ -121,7 +104,7 @@ export default function RiskAssessmentQuestionEdit() {
   }, [questionId, isNew]);
 
   const addAnswerOption = () => {
-    setAnswerOptions((prev) => [...prev, { label: "", score: 0, sort_order: prev.length, requires_followup: false, followup_label: "" }]);
+    setAnswerOptions((prev) => [...prev, { label: "", sort_order: prev.length, requires_followup: false, followup_label: "" }]);
   };
   const updateAnswerOption = (index: number, updates: Partial<AnswerOption>) => {
     setAnswerOptions((prev) => prev.map((o, i) => (i === index ? { ...o, ...updates } : o)));
@@ -138,24 +121,7 @@ export default function RiskAssessmentQuestionEdit() {
     setSaving(true);
 
     const isSummary = formData.question_type === "summary";
-
-    let derivedMaxScore = formData.max_score;
-    if (isSummary) {
-      const sources = allQuestions.filter((q) => formData.context_question_ids.includes(q.id));
-      if (formData.score_aggregation === "sum" || formData.score_aggregation === "average") {
-        derivedMaxScore = sources.reduce((s, q) => s + (q.max_score || 0), 0);
-      } else if (formData.score_aggregation === "max") {
-        derivedMaxScore = Math.max(0, ...sources.map((q) => q.max_score || 0));
-      } else {
-        derivedMaxScore = 0;
-      }
-    } else if (answerOptions.length > 0) {
-      derivedMaxScore = formData.question_type === "multi_select"
-        ? answerOptions.reduce((sum, o) => sum + o.score, 0)
-        : Math.max(...answerOptions.map((o) => o.score), 0);
-    }
-
-    const questionPayload = { ...formData, max_score: derivedMaxScore } as any;
+    const questionPayload = { ...formData } as any;
 
     let qId = editingQuestion?.id;
 
@@ -189,7 +155,6 @@ export default function RiskAssessmentQuestionEdit() {
         const rows = answerOptions.map((o, i) => ({
           question_id: qId!,
           label: o.label,
-          score: o.score,
           sort_order: i,
           requires_followup: !!o.requires_followup,
           followup_label: o.followup_label || "",
@@ -296,18 +261,10 @@ export default function RiskAssessmentQuestionEdit() {
                 <CardHeader>
                   <CardTitle className="text-base">Answer Options</CardTitle>
                   <CardDescription>
-                    Define selectable answers. Each has a label (shown to user) and a hidden risk score.
+                    Define selectable answers shown to the user.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {answerOptions.length === 0 && (
-                    <div className="space-y-2">
-                      <Label>Max Score (manual)</Label>
-                      <Input type="number" value={formData.max_score} onChange={(e) => setFormData((p) => ({ ...p, max_score: Number(e.target.value) }))} min={1} max={100} />
-                      <p className="text-xs text-muted-foreground">Used as fallback slider if no answer options are defined.</p>
-                    </div>
-                  )}
-
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-semibold">Options</Label>
                     <Button variant="outline" size="sm" onClick={addAnswerOption} className="gap-1">
@@ -317,10 +274,7 @@ export default function RiskAssessmentQuestionEdit() {
 
                   {answerOptions.length === 0 ? (
                     <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-                      No answer options defined. Users will see a slider (0 to max score) instead.
-                      {formData.question_type === "multi_select" && (
-                        <p className="mt-1 text-xs font-medium text-primary">Multi-select: the score will be the sum of all selected options.</p>
-                      )}
+                      No answer options defined. Add at least one option for users to select.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -334,16 +288,6 @@ export default function RiskAssessmentQuestionEdit() {
                               value={opt.label}
                               onChange={(e) => updateAnswerOption(i, { label: e.target.value })}
                             />
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <Label className="text-xs text-muted-foreground">Score:</Label>
-                              <Input
-                                type="number"
-                                className="w-20"
-                                value={opt.score}
-                                onChange={(e) => updateAnswerOption(i, { score: Number(e.target.value) })}
-                                min={0}
-                              />
-                            </div>
                             <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeAnswerOption(i)}>
                               <X className="h-3.5 w-3.5" />
                             </Button>
@@ -369,11 +313,6 @@ export default function RiskAssessmentQuestionEdit() {
                           </div>
                         </div>
                       ))}
-                      <p className="text-xs text-muted-foreground">
-                        {formData.question_type === "multi_select"
-                          ? `Max score (sum of all options): ${answerOptions.reduce((s, o) => s + o.score, 0)}`
-                          : `Max score (highest option): ${Math.max(...answerOptions.map((o) => o.score), 0)}`}
-                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -387,7 +326,7 @@ export default function RiskAssessmentQuestionEdit() {
                 </CardTitle>
                 <CardDescription>
                   {formData.question_type === "summary"
-                    ? "Tell the AI how to summarise the selected questions (tone, length, what to highlight). Example: \"Give a 3-sentence client-risk overview highlighting the highest-risk factors.\""
+                    ? "Tell the AI how to summarise the selected questions (tone, length, what to highlight)."
                     : "Optional. Appended to the global system prompt as additional instructions specific to this question."}
                 </CardDescription>
               </CardHeader>
@@ -396,8 +335,8 @@ export default function RiskAssessmentQuestionEdit() {
                   value={formData.ai_prompt_template}
                   onChange={(e) => setFormData((p) => ({ ...p, ai_prompt_template: e.target.value }))}
                   placeholder={formData.question_type === "summary"
-                    ? "e.g. Provide a concise client-risk overview in 3 sentences. Highlight any high-scoring answers and explain their combined impact."
-                    : "e.g. Pay special attention to indirect PEP connections. Consider both domestic and foreign exposure..."}
+                    ? "e.g. Provide a concise client-risk overview in 3 sentences."
+                    : "e.g. Pay special attention to indirect PEP connections..."}
                   className="h-32 font-mono text-xs"
                 />
               </CardContent>
@@ -424,7 +363,7 @@ export default function RiskAssessmentQuestionEdit() {
                 </CardTitle>
                 <CardDescription>
                   {formData.question_type === "summary"
-                    ? "Select the questions whose answers and notes this summary will roll up. The AI receives them in the order shown."
+                    ? "Select the questions whose answers and notes this summary will roll up."
                     : "Include answers and notes from any other question when generating AI notes."}
                 </CardDescription>
               </CardHeader>
@@ -475,7 +414,7 @@ export default function RiskAssessmentQuestionEdit() {
               <CardHeader>
                 <CardTitle className="text-base">Case Data to Include</CardTitle>
                 <CardDescription>
-                  Pick a sample case, then tick exactly which fields should be injected into this question's AI prompt. The preview shows what will be sent.
+                  Pick a sample case, then tick exactly which fields should be injected into this question's AI prompt.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -485,38 +424,6 @@ export default function RiskAssessmentQuestionEdit() {
                 />
               </CardContent>
             </Card>
-
-            {formData.question_type === "summary" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Score Aggregation</CardTitle>
-                  <CardDescription>
-                    Optional. How this summary's own score is calculated from the questions above.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Select
-                    value={formData.score_aggregation}
-                    onValueChange={(v) => setFormData((p) => ({ ...p, score_aggregation: v as any }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None — narrative only</SelectItem>
-                      <SelectItem value="sum">Sum of source scores</SelectItem>
-                      <SelectItem value="average">Average of source scores</SelectItem>
-                      <SelectItem value="max">Highest source score</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {formData.score_aggregation !== "none" && (
-                    <p className="text-xs text-muted-foreground">
-                      Computed at runtime from the user's actual answers; max score is derived automatically.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>

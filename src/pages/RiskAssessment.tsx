@@ -23,20 +23,8 @@ type Session = {
   id: string;
   customer_id: string;
   case_id: string;
-  total_score: number;
-  max_possible_score: number;
-  risk_level: string;
   status: string;
   created_at: string;
-};
-
-const riskBadge = (level: string) => {
-  switch (level) {
-    case "low": return <Badge className="bg-green-100 text-green-700 border-green-200">Low</Badge>;
-    case "medium": return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">Medium</Badge>;
-    case "high": return <Badge className="bg-red-100 text-red-700 border-red-200">High</Badge>;
-    default: return <Badge variant="secondary">Pending</Badge>;
-  }
 };
 
 export default function RiskAssessment() {
@@ -436,10 +424,9 @@ export default function RiskAssessment() {
                   onClick={() => navigate(`/risk-assessment/process/${s.id}`)}
                 >
                   <div className="flex items-center gap-3">
-                    {riskBadge(s.risk_level)}
-                    <span className="text-sm">
-                      {s.total_score}/{s.max_possible_score} ({s.max_possible_score > 0 ? ((s.total_score / s.max_possible_score) * 100).toFixed(0) : 0}%)
-                    </span>
+                    <Badge variant={s.status === "completed" ? "default" : "secondary"}>
+                      {s.status === "completed" ? "Completed" : "In progress"}
+                    </Badge>
                   </div>
                   <span className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</span>
                 </div>
