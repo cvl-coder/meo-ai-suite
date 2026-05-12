@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -34,15 +33,7 @@ type SettingsData = {
   ai_api_key: string;
   ai_model: string;
   output_language: string;
-  data_sources: string[];
 };
-
-const DATA_SOURCE_OPTIONS = [
-  { value: "case_risk", label: "Case Risk Assessments" },
-  { value: "entity_risk", label: "Entity Risk Assessments" },
-  { value: "case_data", label: "Case Data" },
-  { value: "entity_data", label: "Entity Data" },
-];
 
 export default function RiskAssessmentAdmin() {
   const navigate = useNavigate();
@@ -62,8 +53,7 @@ export default function RiskAssessmentAdmin() {
     ]);
     setQuestions((qRes.data as any) || []);
     if (sRes.data) {
-      const s = sRes.data as any;
-      setSettings({ ...s, data_sources: Array.isArray(s.data_sources) ? s.data_sources : ["case_risk", "entity_risk"] });
+      setSettings(sRes.data as any);
     }
     setLoading(false);
   };
@@ -79,7 +69,6 @@ export default function RiskAssessmentAdmin() {
         ai_api_key: settings.ai_api_key,
         ai_model: settings.ai_model,
         output_language: settings.output_language,
-        data_sources: settings.data_sources as any,
         updated_at: new Date().toISOString(),
       })
       .eq("id", settings.id);
@@ -127,13 +116,6 @@ export default function RiskAssessmentAdmin() {
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, enabled } : q)));
   };
 
-  const toggleDataSource = (source: string) => {
-    if (!settings) return;
-    const current = settings.data_sources;
-    const updated = current.includes(source) ? current.filter((s) => s !== source) : [...current, source];
-    setSettings({ ...settings, data_sources: updated });
-  };
-
   if (loading) {
     return (
       <AppLayout>
@@ -155,7 +137,7 @@ export default function RiskAssessmentAdmin() {
             <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
               Risk Assessment Admin
             </h1>
-            <p className="text-muted-foreground">Configure questions, AI prompts, and data sources.</p>
+            <p className="text-muted-foreground">Configure questions and AI prompts.</p>
           </div>
         </div>
 
@@ -230,25 +212,6 @@ export default function RiskAssessmentAdmin() {
 
           {/* Right: Settings */}
           <div className="space-y-6">
-            {/* Data Sources */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Data Sources</CardTitle>
-                <CardDescription>Choose which MEO data feeds into the assessment.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {DATA_SOURCE_OPTIONS.map((ds) => (
-                  <label key={ds.value} className="flex items-center gap-3 cursor-pointer">
-                    <Checkbox
-                      checked={settings?.data_sources.includes(ds.value)}
-                      onCheckedChange={() => toggleDataSource(ds.value)}
-                    />
-                    <span className="text-sm">{ds.label}</span>
-                  </label>
-                ))}
-              </CardContent>
-            </Card>
-
             {/* AI Config */}
             <Card>
               <CardHeader>

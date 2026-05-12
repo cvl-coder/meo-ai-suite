@@ -338,7 +338,6 @@ export type Database = {
           ai_endpoint_url: string
           ai_model: string
           ai_prompt_template: string
-          data_sources: Json
           id: string
           output_language: string
           updated_at: string
@@ -348,7 +347,6 @@ export type Database = {
           ai_endpoint_url?: string
           ai_model?: string
           ai_prompt_template?: string
-          data_sources?: Json
           id?: string
           output_language?: string
           updated_at?: string
@@ -358,7 +356,6 @@ export type Database = {
           ai_endpoint_url?: string
           ai_model?: string
           ai_prompt_template?: string
-          data_sources?: Json
           id?: string
           output_language?: string
           updated_at?: string
