@@ -253,7 +253,6 @@ export type Database = {
       }
       risk_assessment_questions: {
         Row: {
-          ai_model: string
           ai_prompt_template: string
           case_data_fields: Json | null
           case_data_sources: Json
@@ -269,7 +268,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          ai_model?: string
           ai_prompt_template?: string
           case_data_fields?: Json | null
           case_data_sources?: Json
@@ -285,7 +283,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          ai_model?: string
           ai_prompt_template?: string
           case_data_fields?: Json | null
           case_data_sources?: Json

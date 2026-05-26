@@ -36,7 +36,7 @@ type Question = {
   description: string;
   sort_order: number;
   ai_prompt_template: string;
-  ai_model?: string;
+  
   question_type: string;
   context_question_ids: string[];
   case_data_sources?: string[];
@@ -360,7 +360,7 @@ export default function RiskAssessmentProcess() {
       const authSession = (await supabase.auth.getSession()).data.session;
 
       const endpointUrl = settings?.ai_endpoint_url || "http://core.meo.io/v1";
-      const modelName = question.ai_model?.trim() || settings?.ai_model || "llama3.1:latest";
+      const modelName = settings?.ai_model || "llama3.1:latest";
       setLastPromptByQuestion((prev) => ({
         ...prev,
         [question.id]: { system: systemMessage, user: userPrompt, model: modelName, endpoint: endpointUrl, ts: new Date().toISOString() },
@@ -480,7 +480,7 @@ export default function RiskAssessmentProcess() {
       const authSession = (await supabase.auth.getSession()).data.session;
 
       const endpointUrl2 = settings?.ai_endpoint_url || "http://core.meo.io/v1";
-      const modelName2 = question.ai_model?.trim() || settings?.ai_model || "llama3.1:latest";
+      const modelName2 = settings?.ai_model || "llama3.1:latest";
       setLastPromptByQuestion((prev) => ({
         ...prev,
         [question.id]: { system: systemMessage, user: userPrompt, model: modelName2, endpoint: endpointUrl2, ts: new Date().toISOString() },

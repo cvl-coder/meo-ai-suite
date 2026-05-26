@@ -19,29 +19,20 @@ type Settings = {
   ai_prompt_template: string;
 };
 
-type Question = {
-  id: string;
-  question_text: string;
-  category: string;
-  sort_order: number;
-  ai_model: string;
-};
-
 export default function RiskAssessmentAiSettings() {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [s, q] = await Promise.all([
-        supabase.from("risk_assessment_settings").select("id,ai_model,ai_prompt_template").limit(1).maybeSingle(),
-        supabase.from("risk_assessment_questions").select("id,question_text,category,sort_order,ai_model").order("sort_order"),
-      ]);
-      if (s.data) setSettings(s.data as any);
-      setQuestions((q.data as any) || []);
+      const { data } = await supabase
+        .from("risk_assessment_settings")
+        .select("id,ai_model,ai_prompt_template")
+        .limit(1)
+        .maybeSingle();
+      if (data) setSettings(data as any);
       setLoading(false);
     })();
   }, []);
@@ -49,7 +40,7 @@ export default function RiskAssessmentAiSettings() {
   const saveAll = async () => {
     if (!settings) return;
     setSaving(true);
-    const { error: sErr } = await supabase
+    const { error } = await supabase
       .from("risk_assessment_settings")
       .update({
         ai_model: settings.ai_model,
@@ -57,16 +48,9 @@ export default function RiskAssessmentAiSettings() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", settings.id);
-
-    const updates = await Promise.all(
-      questions.map((q) =>
-        supabase.from("risk_assessment_questions").update({ ai_model: q.ai_model || "" }).eq("id", q.id),
-      ),
-    );
     setSaving(false);
-    const firstErr = sErr || updates.find((r) => r.error)?.error;
-    if (firstErr) {
-      toast({ title: "Error saving", description: firstErr.message, variant: "destructive" });
+    if (error) {
+      toast({ title: "Error saving", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "AI settings saved" });
     }
@@ -94,7 +78,7 @@ export default function RiskAssessmentAiSettings() {
               <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
                 AI Settings
               </h1>
-              <p className="text-muted-foreground">Configure the model and global system prompt used for risk assessment.</p>
+              <p className="text-muted-foreground">Configure the model and global system prompt used for the risk assessment.</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate("/risk-assessment/admin")} className="gap-2">
@@ -104,8 +88,8 @@ export default function RiskAssessmentAiSettings() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Default Model</CardTitle>
-            <CardDescription>Used for every question unless a question-specific override is set below.</CardDescription>
+            <CardTitle className="text-base">Assessment Model & Prompt</CardTitle>
+            <CardDescription>Applies to every question in the risk assessment.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2 max-w-sm">
@@ -132,46 +116,6 @@ export default function RiskAssessmentAiSettings() {
                 Sets the AI persona and context. Do NOT hardcode language here — use the Output Language setting on each assessment.
               </p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Per-Question Model Overrides</CardTitle>
-            <CardDescription>Choose a different model for individual questions. Leave as "Default" to use the model above.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {questions.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No questions yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {questions.map((q, idx) => (
-                  <div key={q.id} className="flex items-center gap-3 py-2 border-b last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        <span className="text-muted-foreground mr-2">#{idx + 1}</span>
-                        {q.question_text}
-                      </p>
-                      {q.category && <p className="text-xs text-muted-foreground">{q.category}</p>}
-                    </div>
-                    <Select
-                      value={q.ai_model || "__default__"}
-                      onValueChange={(v) =>
-                        setQuestions((prev) =>
-                          prev.map((p) => (p.id === q.id ? { ...p, ai_model: v === "__default__" ? "" : v } : p)),
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__default__">Default ({settings?.ai_model || DEFAULT_MODEL})</SelectItem>
-                        {MODELS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-              </div>
-            )}
           </CardContent>
         </Card>
 
