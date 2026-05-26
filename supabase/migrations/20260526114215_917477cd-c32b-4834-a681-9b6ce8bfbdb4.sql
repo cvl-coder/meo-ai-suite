@@ -1,0 +1,1 @@
+ALTER TABLE public.risk_assessment_questions DROP COLUMN IF EXISTS ai_model;
