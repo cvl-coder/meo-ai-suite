@@ -42,7 +42,6 @@ export async function callMeoAiChat({ system, user, model }: MeoChatArgs): Promi
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      "X-API-Key": token,
     },
     body: JSON.stringify({
       model,
