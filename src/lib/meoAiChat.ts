@@ -16,6 +16,9 @@ export type MeoChatResult = {
 
 function extractText(payload: any): string {
   if (!payload) return "";
+  // Ollama shape
+  const msgContent = payload?.message?.content;
+  if (typeof msgContent === "string") return msgContent;
   // OpenAI shape
   const choiceContent = payload?.choices?.[0]?.message?.content;
   if (typeof choiceContent === "string") return choiceContent;
