@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getMeoToken } from "@/lib/meoToken";
+import { callMeoAiChat, MEO_AI_CHAT_ENDPOINT } from "@/lib/meoAiChat";
 import { Loader2, ArrowLeft, CheckCircle2, Sparkles, Save, Eye, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -355,65 +356,13 @@ export default function RiskAssessmentProcess() {
       const caseDataBlock = await fetchCaseDataBlock(question);
       if (caseDataBlock) userPrompt += caseDataBlock;
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const authSession = (await supabase.auth.getSession()).data.session;
-
-      const endpointUrl = settings?.ai_endpoint_url || "http://core.meo.io/v1";
-      const modelName = settings?.ai_model || "llama3.1:latest";
+      const modelName = settings?.ai_model || "llama3.2:3b";
       setLastPromptByQuestion((prev) => ({
         ...prev,
-        [question.id]: { system: systemMessage, user: userPrompt, model: modelName, endpoint: endpointUrl, ts: new Date().toISOString() },
+        [question.id]: { system: systemMessage, user: userPrompt, model: modelName, endpoint: MEO_AI_CHAT_ENDPOINT, ts: new Date().toISOString() },
       }));
-      const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: supabaseKey,
-          Authorization: `Bearer ${authSession?.access_token || supabaseKey}`,
-        },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: systemMessage },
-            { role: "user", content: userPrompt },
-          ],
-          model: modelName,
-          provider: "custom",
-          custom_endpoint: endpointUrl,
-          custom_api_key: settings?.ai_api_key || "",
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`AI error (${response.status}): ${errText.substring(0, 200)}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response body");
-      const decoder = new TextDecoder();
-      let buffer = "", fullText = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          const t = line.trim();
-          if (!t.startsWith("data: ")) continue;
-          const d = t.slice(6);
-          if (d === "[DONE]") continue;
-          try {
-            const p = JSON.parse(d);
-            const delta = p.choices?.[0]?.delta?.content;
-            if (delta) {
-              fullText += delta;
-              updateAnswer(question.id, { notes: fullText });
-            }
-          } catch {}
-        }
-      }
+      const { text } = await callMeoAiChat({ system: systemMessage, user: userPrompt, model: modelName });
+      updateAnswer(question.id, { notes: text });
     } catch (err: any) {
       toast({ title: "Error generating note", description: err.message, variant: "destructive" });
     }
