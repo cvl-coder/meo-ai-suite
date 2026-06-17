@@ -1,0 +1,1 @@
+UPDATE public.risk_assessment_settings SET ai_model='qwen3:14b', updated_at=now();
