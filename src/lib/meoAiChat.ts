@@ -6,6 +6,7 @@ export type MeoChatArgs = {
   system: string;
   user: string;
   model: string;
+  customerId?: string;
 };
 
 export type MeoChatResult = {
@@ -31,18 +32,24 @@ function extractText(payload: any): string {
   }
 }
 
-export async function callMeoAiChat({ system, user, model }: MeoChatArgs): Promise<MeoChatResult> {
+export async function callMeoAiChat({ system, user, model, customerId }: MeoChatArgs): Promise<MeoChatResult> {
   const token = getMeoToken();
   if (!token || !isMeoTokenValid()) {
     throw new Error("Your MEO session has expired. Please sign in again.");
   }
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+
+  if (customerId) {
+    headers["X-Customer-Id"] = customerId;
+  }
+
   const response = await fetch(MEO_AI_CHAT_ENDPOINT, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
     body: JSON.stringify({
       model,
       messages: [
@@ -55,6 +62,9 @@ export async function callMeoAiChat({ system, user, model }: MeoChatArgs): Promi
 
   if (!response.ok) {
     const errText = await response.text().catch(() => "");
+    if (response.status === 401) {
+      throw new Error(`AI error (401): The new MEO AI endpoint rejected the current MEO session token${customerId ? " for this workspace" : ""}.`);
+    }
     throw new Error(`AI error (${response.status}): ${errText.substring(0, 300)}`);
   }
 

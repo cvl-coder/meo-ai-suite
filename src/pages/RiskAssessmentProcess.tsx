@@ -361,7 +361,8 @@ export default function RiskAssessmentProcess() {
         ...prev,
         [question.id]: { system: systemMessage, user: userPrompt, model: modelName, endpoint: MEO_AI_CHAT_ENDPOINT, ts: new Date().toISOString() },
       }));
-      const { text } = await callMeoAiChat({ system: systemMessage, user: userPrompt, model: modelName });
+      const customerId = session?.customer_id || localStorage.getItem("selectedCustomerId") || "";
+      const { text } = await callMeoAiChat({ system: systemMessage, user: userPrompt, model: modelName, customerId });
       updateAnswer(question.id, { notes: text });
     } catch (err: any) {
       toast({ title: "Error generating note", description: err.message, variant: "destructive" });
@@ -429,7 +430,8 @@ export default function RiskAssessmentProcess() {
         ...prev,
         [question.id]: { system: systemMessage, user: userPrompt, model: modelName2, endpoint: MEO_AI_CHAT_ENDPOINT, ts: new Date().toISOString() },
       }));
-      const { text } = await callMeoAiChat({ system: systemMessage, user: userPrompt, model: modelName2 });
+      const customerId = session?.customer_id || localStorage.getItem("selectedCustomerId") || "";
+      const { text } = await callMeoAiChat({ system: systemMessage, user: userPrompt, model: modelName2, customerId });
       updateAnswer(question.id, { notes: text });
     } catch (err: any) {
       toast({ title: "Error generating summary", description: err.message, variant: "destructive" });
@@ -495,7 +497,8 @@ export default function RiskAssessmentProcess() {
 
       const modelName3 = settings?.ai_model || "llama3.2:3b";
       setLastSummaryPrompt({ system: systemMessage, user: userMessage, model: modelName3, endpoint: MEO_AI_CHAT_ENDPOINT, ts: new Date().toISOString() });
-      const { text: fullText } = await callMeoAiChat({ system: systemMessage, user: userMessage, model: modelName3 });
+      const customerId = session?.customer_id || localStorage.getItem("selectedCustomerId") || "";
+      const { text: fullText } = await callMeoAiChat({ system: systemMessage, user: userMessage, model: modelName3, customerId });
       setStreamedSummary(fullText);
 
       if (fullText) {
