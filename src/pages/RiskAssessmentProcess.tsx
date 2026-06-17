@@ -356,7 +356,7 @@ export default function RiskAssessmentProcess() {
       const caseDataBlock = await fetchCaseDataBlock(question);
       if (caseDataBlock) userPrompt += caseDataBlock;
 
-      const modelName = "llama3.2:3b";
+      const modelName = settings?.ai_model || "gemma3:12b";
       setLastPromptByQuestion((prev) => ({
         ...prev,
         [question.id]: { system: systemMessage, user: userPrompt, model: modelName, endpoint: MEO_AI_CHAT_ENDPOINT, ts: new Date().toISOString() },
@@ -425,7 +425,7 @@ export default function RiskAssessmentProcess() {
         caseDataBlock +
         `\n\nWrite the summary now in ${outputLang}.`;
 
-      const modelName2 = "llama3.2:3b";
+      const modelName2 = settings?.ai_model || "gemma3:12b";
       setLastPromptByQuestion((prev) => ({
         ...prev,
         [question.id]: { system: systemMessage, user: userPrompt, model: modelName2, endpoint: MEO_AI_CHAT_ENDPOINT, ts: new Date().toISOString() },
@@ -495,7 +495,7 @@ export default function RiskAssessmentProcess() {
         `4. Recommended actions\n` +
         `\nREMINDER: Write ENTIRELY in ${summaryLang}.`;
 
-      const modelName3 = "llama3.2:3b";
+      const modelName3 = settings?.ai_model || "gemma3:12b";
       setLastSummaryPrompt({ system: systemMessage, user: userMessage, model: modelName3, endpoint: MEO_AI_CHAT_ENDPOINT, ts: new Date().toISOString() });
       const customerId = session?.customer_id || localStorage.getItem("selectedCustomerId") || "";
       const { text: fullText } = await callMeoAiChat({ system: systemMessage, user: userMessage, model: modelName3, customerId });
