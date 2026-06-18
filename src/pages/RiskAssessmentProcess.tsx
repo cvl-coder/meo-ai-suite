@@ -283,27 +283,9 @@ export default function RiskAssessmentProcess() {
       const outputLang = settings?.output_language || "English";
       const selectedLabel = currentAnswer.selected_option_label || "(no selection)";
 
-      const rawGlobalPrompt = settings?.ai_prompt_template?.trim()
+      const systemMessage = settings?.ai_prompt_template?.trim()
         ? settings.ai_prompt_template.trim()
         : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
-
-      const languageLinePattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
-      const cleanedGlobalPrompt = rawGlobalPrompt
-        .split("\n")
-        .filter((line) => !languageLinePattern.test(line))
-        .join("\n");
-
-      const systemMessage =
-        `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
-        `You MUST write your ENTIRE response in ${outputLang}. Every single word must be in ${outputLang}.\n` +
-        `Do NOT use any other language, even if the input or instructions below contain text in another language.\n` +
-        `If ${outputLang} is "Danish", use proper Danish (not Norwegian or Swedish). If "English", use proper English.\n\n` +
-        `${cleanedGlobalPrompt}\n\n` +
-        `Rules:\n` +
-        `- Write exactly 2-4 sentences of professional risk analysis.\n` +
-        `- Do NOT repeat the question or selected answer back.\n` +
-        `- Base your analysis strictly on the provided factual context.\n` +
-        `- Focus on the risk implications of the selected answer.`;
 
       const questionDescription = question.description || "";
 
@@ -375,25 +357,9 @@ export default function RiskAssessmentProcess() {
     try {
       const outputLang = settings?.output_language || "English";
 
-      const rawGlobalPrompt = settings?.ai_prompt_template?.trim()
+      const systemMessage = settings?.ai_prompt_template?.trim()
         ? settings.ai_prompt_template.trim()
         : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
-      const languageLinePattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
-      const cleanedGlobalPrompt = rawGlobalPrompt
-        .split("\n")
-        .filter((line) => !languageLinePattern.test(line))
-        .join("\n");
-
-      const systemMessage =
-        `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
-        `You MUST write your ENTIRE response in ${outputLang}. Every single word must be in ${outputLang}.\n` +
-        `Do NOT use any other language, even if the input or instructions below contain text in another language.\n\n` +
-        `${cleanedGlobalPrompt}\n\n` +
-        `You are writing a SUMMARY that aggregates the answers of several earlier risk-assessment questions.\n` +
-        `Rules:\n` +
-        `- Base your summary strictly on the data provided below — do not invent facts.\n` +
-        `- Reference the source questions by their numbers (#1, #2, ...) when relevant.\n` +
-        `- Be concise, professional, and focused on risk implications.`;
 
       const sourceIds: string[] = Array.isArray(question.context_question_ids) ? question.context_question_ids : [];
       const sourceBlocks = sourceIds
@@ -458,25 +424,9 @@ export default function RiskAssessmentProcess() {
       });
 
       const summaryLang = settings?.output_language || "English";
-      const rawSummaryPrompt = settings?.ai_prompt_template ||
-        "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.";
-
-      const summaryLangPattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
-      const cleanedSummaryPrompt = rawSummaryPrompt
-        .split("\n")
-        .filter((line) => !summaryLangPattern.test(line))
-        .join("\n");
-
-      const systemMessage =
-        `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
-        `You MUST write your ENTIRE response in ${summaryLang}. Every single word must be in ${summaryLang}.\n` +
-        `Do NOT use any other language, even if the input data or notes below contain text in another language.\n\n` +
-        `${cleanedSummaryPrompt}\n\n` +
-        `Rules:\n` +
-        `- Write a structured risk assessment summary in ${summaryLang}.\n` +
-        `- Use Markdown formatting with clear headings.\n` +
-        `- Base your analysis strictly on the provided data.\n` +
-        `- Do NOT invent facts not present in the data.`;
+      const systemMessage = settings?.ai_prompt_template?.trim()
+        ? settings.ai_prompt_template.trim()
+        : "You are a risk assessment analyst. Analyze the following risk assessment data and provide a comprehensive summary.";
 
       const userMessage =
         `Analyze the following risk assessment and provide a summary in ${summaryLang}.\n\n` +
