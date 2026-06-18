@@ -66,6 +66,13 @@ export async function callMeoAiChat({ system, user, model, customerId }: MeoChat
   console.log(
     `${label} → POST ${MEO_AI_CHAT_ENDPOINT}\n  system=${sysChars} chars, user=${userChars} chars, body=${bodyBytes} B${customerId ? `, customer=${customerId}` : ""}`
   );
+  console.groupCollapsed(`${label} payload dump`);
+  console.log("endpoint:", MEO_AI_CHAT_ENDPOINT);
+  console.log("headers:", { ...headers, Authorization: "Bearer <redacted>" });
+  console.log("---- SYSTEM ----\n" + system);
+  console.log("---- USER ----\n" + user);
+  console.log("raw body JSON:", body);
+  console.groupEnd();
 
   const t0 = performance.now();
   const response = await fetch(MEO_AI_CHAT_ENDPOINT, {
