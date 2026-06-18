@@ -50,21 +50,34 @@ export async function callMeoAiChat({ system, user, model, customerId }: MeoChat
     headers["X-Customer-Id"] = customerId;
   }
 
+  const body = JSON.stringify({
+    model,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    stream: false,
+  });
+
+  const sysChars = system.length;
+  const userChars = user.length;
+  const bodyBytes = new Blob([body]).size;
+  const label = `[meo-ai] ${model}`;
+  console.log(
+    `${label} → POST ${MEO_AI_CHAT_ENDPOINT}\n  system=${sysChars} chars, user=${userChars} chars, body=${bodyBytes} B${customerId ? `, customer=${customerId}` : ""}`
+  );
+
+  const t0 = performance.now();
   const response = await fetch(MEO_AI_CHAT_ENDPOINT, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      stream: false,
-    }),
+    body,
   });
+  const tHeaders = performance.now();
 
   if (!response.ok) {
     const errText = await response.text().catch(() => "");
+    console.warn(`${label} ✗ ${response.status} in ${(tHeaders - t0).toFixed(0)}ms`);
     if (response.status === 401) {
       throw new Error(`AI error (401): The new MEO AI endpoint rejected the current MEO session token${customerId ? " for this workspace" : ""}.`);
     }
@@ -72,6 +85,12 @@ export async function callMeoAiChat({ system, user, model, customerId }: MeoChat
   }
 
   const raw = await response.json();
+  const tBody = performance.now();
   const text = extractText(raw);
+  const usage = (raw as any)?.usage;
+  console.log(
+    `${label} ✓ ${response.status} | headers=${(tHeaders - t0).toFixed(0)}ms, body=${(tBody - tHeaders).toFixed(0)}ms, total=${(tBody - t0).toFixed(0)}ms | out=${text.length} chars` +
+      (usage ? ` | usage=${JSON.stringify(usage)}` : "")
+  );
   return { text, raw };
 }
