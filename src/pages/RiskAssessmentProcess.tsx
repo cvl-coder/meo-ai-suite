@@ -283,27 +283,9 @@ export default function RiskAssessmentProcess() {
       const outputLang = settings?.output_language || "English";
       const selectedLabel = currentAnswer.selected_option_label || "(no selection)";
 
-      const rawGlobalPrompt = settings?.ai_prompt_template?.trim()
+      const systemMessage = settings?.ai_prompt_template?.trim()
         ? settings.ai_prompt_template.trim()
         : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
-
-      const languageLinePattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
-      const cleanedGlobalPrompt = rawGlobalPrompt
-        .split("\n")
-        .filter((line) => !languageLinePattern.test(line))
-        .join("\n");
-
-      const systemMessage =
-        `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
-        `You MUST write your ENTIRE response in ${outputLang}. Every single word must be in ${outputLang}.\n` +
-        `Do NOT use any other language, even if the input or instructions below contain text in another language.\n` +
-        `If ${outputLang} is "Danish", use proper Danish (not Norwegian or Swedish). If "English", use proper English.\n\n` +
-        `${cleanedGlobalPrompt}\n\n` +
-        `Rules:\n` +
-        `- Write exactly 2-4 sentences of professional risk analysis.\n` +
-        `- Do NOT repeat the question or selected answer back.\n` +
-        `- Base your analysis strictly on the provided factual context.\n` +
-        `- Focus on the risk implications of the selected answer.`;
 
       const questionDescription = question.description || "";
 
