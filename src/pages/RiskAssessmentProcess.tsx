@@ -357,25 +357,9 @@ export default function RiskAssessmentProcess() {
     try {
       const outputLang = settings?.output_language || "English";
 
-      const rawGlobalPrompt = settings?.ai_prompt_template?.trim()
+      const systemMessage = settings?.ai_prompt_template?.trim()
         ? settings.ai_prompt_template.trim()
         : `You are a senior AML/KYC compliance analyst writing internal risk assessment notes.`;
-      const languageLinePattern = /\b(danish|dansk|english|norwegian|norsk|swedish|svenska|german|deutsch|french|français|sprog|language\s*:)\b/gi;
-      const cleanedGlobalPrompt = rawGlobalPrompt
-        .split("\n")
-        .filter((line) => !languageLinePattern.test(line))
-        .join("\n");
-
-      const systemMessage =
-        `[LANGUAGE DIRECTIVE — THIS OVERRIDES EVERYTHING]\n` +
-        `You MUST write your ENTIRE response in ${outputLang}. Every single word must be in ${outputLang}.\n` +
-        `Do NOT use any other language, even if the input or instructions below contain text in another language.\n\n` +
-        `${cleanedGlobalPrompt}\n\n` +
-        `You are writing a SUMMARY that aggregates the answers of several earlier risk-assessment questions.\n` +
-        `Rules:\n` +
-        `- Base your summary strictly on the data provided below — do not invent facts.\n` +
-        `- Reference the source questions by their numbers (#1, #2, ...) when relevant.\n` +
-        `- Be concise, professional, and focused on risk implications.`;
 
       const sourceIds: string[] = Array.isArray(question.context_question_ids) ? question.context_question_ids : [];
       const sourceBlocks = sourceIds
